@@ -1,0 +1,15 @@
+{
+	"ImportPath": "github.com/Clever/mongo-to-s3",
+	"GoVersion": "go1.5",
+	"Deps": [
+		{
+			"ImportPath": "gopkg.in/mgo.v2",
+			"Comment": "r2015.06.03-4-gf4923a5",
+			"Rev": "f4923a569136442e900b8cf5c1a706c0a8b0883c"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "7ad95dd0798a40da1ccdff6dff35fd177b5edf40"
+		}
+	]
+}
