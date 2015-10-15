@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/Clever/mongo-to-s3/aws"
 	"github.com/Clever/mongo-to-s3/config"
 	"github.com/Clever/mongo-to-s3/fab"
 
@@ -37,7 +36,7 @@ func main() {
 	var instance fab.Instance
 	if *url == "" {
 		instance = StartDB("analytics-test")
-		*url = instance.IP + "/clever"
+		*url = "mongodb://" + instance.IP + ":27017/clever"
 	}
 	s := MongoConnection(*url)
 	log.Println("Connected to mongo")
@@ -92,13 +91,7 @@ func StartDB(instanceName string) fab.Instance {
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
 func MongoConnection(url string) *mgo.Session {
-	//var s *mgo.Session
-	//var err error
-	//for s, err = mgo.Dial(url); err != nil; {
-	//	log.Println("err connecting to mongo: ", err)
-	//	log.Println("sleeping for 1 minute before attempting to reconnect")
-	//	time.Sleep(1 * time.Minute)
-	//}
+	log.Println("url: ", url)
 	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
 	if err != nil {
 		log.Fatal("err connecting to mongo instance: ", err)
