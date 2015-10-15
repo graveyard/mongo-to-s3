@@ -120,7 +120,7 @@ func parseConfigFile(path string) config.Config {
 }
 
 func configuredIterator(s *mgo.Session, table config.Table) *mgo.Iter {
-	collection := s.DB(table.Meta.Database).C(table.Source)
+	collection := s.DB("").C(table.Source)
 	selector := table.MongoSelector()
 	return collection.Find(nil).Select(selector).Iter()
 }

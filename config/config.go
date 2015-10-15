@@ -10,7 +10,6 @@ type Table struct {
 	Destination string  `yaml:"dest"`
 	Source      string  `yaml:"source"`
 	Fields      []Field `yaml:"columns"`
-	Meta        Meta    `yaml:"meta"`
 }
 
 type Field struct {
