@@ -29,6 +29,14 @@ func NewClient(region string) *Client {
 	return &Client{client: svc}
 }
 
+func (c *Client) TerminateInstance(instanceID string) error {
+	input := ec2.TerminateInstancesInput{
+		InstanceIds: []*string{&instanceID},
+	}
+	_, err := c.client.TerminateInstances(&input)
+	return err
+}
+
 // TODO: Figure out how to handle cleanup if a later request fails
 func (c *Client) RunInstanceFromLatestSnapshot(description string) (*Instance, error) {
 	snapshots, err := c.FindSnapshots(description)

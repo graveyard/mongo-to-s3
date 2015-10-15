@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"flag"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/Clever/mongo-to-s3/aws"
 	"github.com/Clever/mongo-to-s3/config"
+	"github.com/Clever/mongo-to-s3/fab"
 
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
@@ -24,28 +26,29 @@ const (
 )
 
 var (
-	configPath   = flag.String("config", "config.yml", "Path to config file")
-	databaseName = flag.String("database", "clever", "Database url connects to (default: Clever)")
-	s3           = flag.String("s3", "", "s3 url to upload to (default: none)")
+	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
+	url        = flag.String("database", "", "Database url if using existing instance")
+	s3         = flag.String("s3", "", "s3 url to upload to (default: none)")
 )
 
 func main() {
 	flag.Parse()
 
-	s := MongoConnection()
+	var instance fab.Instance
+	if *url == "" {
+		instance = StartDB("analytics-test")
+		*url = instance.IP + "/clever"
+	}
+	s := MongoConnection(*url)
 	log.Println("Connected to mongo")
 
 	config := ParseConfigFile()
+	GzipConfigFile()
 	for _, table := range config {
 		if table.Source != "districts" {
 			continue // DEBUG
 		}
-
-		// Create the output file
-		output, err := CreateOutputFile(table.Destination, ".json.gz")
-		if err != nil {
-			log.Fatal("err creating output file: ", err)
-		}
+		output := CreateOutputFile(table.Destination, ".json.gz")
 		defer output.Close()
 
 		// Gzip output to the file
@@ -54,7 +57,6 @@ func main() {
 		sink := json.New(zippedOutput)
 
 		iter := ConfiguredIterator(s, table)
-
 		count, err := ExportData(mongosource.New(iter), table, sink)
 		if err != nil {
 			log.Fatal("err reading table: ", err)
@@ -71,19 +73,37 @@ func main() {
 			}
 		}
 	}
+
+	c := aws.NewClient("us-west-1")
+	if instance.ID != "" {
+		c.TerminateInstance(instance.ID)
+	}
 }
 
-func MongoConnection() *mgo.Session {
-	mongo := os.Getenv(MONGO_URL)
-	if mongo == "" {
-		log.Fatal("missing environment MONGO_URL")
-	}
-	s, err := mgo.Dial(mongo)
+func StartDB(instanceName string) fab.Instance {
+	instance, err := fab.CreateSISDBFromLatestSnapshot(instanceName)
 	if err != nil {
-		log.Fatal("foo err: ", err)
+		log.Fatal("err starting db: ", err)
+	}
+	log.Println("instance id: ", instance.ID)
+	log.Println("instance ip: ", instance.IP)
+	return instance
+}
+
+// Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
+func MongoConnection(url string) *mgo.Session {
+	//var s *mgo.Session
+	//var err error
+	//for s, err = mgo.Dial(url); err != nil; {
+	//	log.Println("err connecting to mongo: ", err)
+	//	log.Println("sleeping for 1 minute before attempting to reconnect")
+	//	time.Sleep(1 * time.Minute)
+	//}
+	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
+	if err != nil {
+		log.Fatal("err connecting to mongo instance: ", err)
 	}
 	s.SetMode(mgo.Monotonic, true)
-
 	return s
 }
 
@@ -101,14 +121,19 @@ func ParseConfigFile() config.Config {
 }
 
 func ConfiguredIterator(s *mgo.Session, table config.Table) *mgo.Iter {
-	collection := s.DB(*databaseName).C(table.Source)
+	collection := s.DB(table.Meta.Database).C(table.Source)
 	selector := table.MongoSelector()
 	return collection.Find(nil).Select(selector).Iter()
 }
 
-func CreateOutputFile(collectionName, extension string) (*os.File, error) {
-	name := time.Now().Format("2006-01-02T15:04:05MST") + "_mongo_" + collectionName + extension
-	return os.Create(name)
+func CreateOutputFile(collectionName, extension string) *os.File {
+	// TODO - change to use snapshot time
+	name := time.Now().Add(-1*time.Hour/2).Round(time.Hour).Format(time.RFC3339) + "_mongo_" + collectionName + extension
+	file, err := os.Create(name)
+	if err != nil {
+		log.Fatal("err creating output file: ", err)
+	}
+	return file
 }
 
 func ExportData(source optimus.Table, table config.Table, sink optimus.Sink) (int, error) {
@@ -119,4 +144,20 @@ func ExportData(source optimus.Table, table config.Table, sink optimus.Sink) (in
 			return optimus.Row(d), nil
 		}).Sink(sink)
 	return rows, err
+}
+
+func GzipConfigFile() {
+	input, err := os.Open(*configPath)
+	if err != nil {
+		log.Fatal("error opening config file", err)
+	}
+	outputFile := CreateOutputFile("config", ".yml.gz")
+	if err != nil {
+		log.Fatal("error creating config file", err)
+	}
+	output := gzip.NewWriter(outputFile)
+	_, err = io.Copy(output, input)
+	if err != nil {
+		log.Fatal("error writing output file: ", err)
+	}
 }
