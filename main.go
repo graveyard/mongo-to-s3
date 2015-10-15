@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Clever/mongo-to-s3/aws"
 	"github.com/Clever/mongo-to-s3/config"
 	"github.com/Clever/mongo-to-s3/fab"
 
