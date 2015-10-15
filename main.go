@@ -36,16 +36,16 @@ func main() {
 
 	var instance fab.Instance
 	if *url == "" {
-		instance = StartDB("analytics-test")
+		instance = startDB("analytics-test")
 		*url = instance.URL
 	}
-	s := MongoConnection(*url)
+	s := mongoConnection(*url)
 	log.Println("Connected to mongo")
 
-	config := ParseConfigFile()
-	GzipConfigFile()
+	config := parseConfigFile(*configPath)
+	gzipConfigFile(*configPath)
 	for _, table := range config {
-		output := CreateOutputFile(table.Destination, ".json.gz")
+		output := createOutputFile(table.Destination, ".json.gz")
 		defer output.Close()
 
 		// Gzip output to the file
@@ -53,7 +53,7 @@ func main() {
 		defer zippedOutput.Close()
 		sink := json.New(zippedOutput)
 
-		iter := ConfiguredIterator(s, table)
+		iter := configuredIterator(s, table)
 		count, err := ExportData(mongosource.New(iter), table, sink)
 		if err != nil {
 			log.Fatal("err reading table: ", err)
@@ -81,7 +81,7 @@ func main() {
 	}
 }
 
-func StartDB(instanceName string) fab.Instance {
+func startDB(instanceName string) fab.Instance {
 	instance, err := fab.CreateSISDBFromLatestSnapshot(instanceName)
 	if err != nil {
 		log.Fatal("err starting db: ", err)
@@ -92,8 +92,7 @@ func StartDB(instanceName string) fab.Instance {
 }
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
-func MongoConnection(url string) *mgo.Session {
-	log.Println("url: ", url)
+func mongoConnection(url string) *mgo.Session {
 	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
 	if err != nil {
 		log.Fatal("err connecting to mongo instance: ", err)
@@ -102,10 +101,15 @@ func MongoConnection(url string) *mgo.Session {
 	return s
 }
 
-func ParseConfigFile() config.Config {
-	data, err := ioutil.ReadFile(*configPath)
+func parseConfigFile(path string) config.Config {
+	reader, err := pathio.Reader(path)
+	defer reader.Close()
 	if err != nil {
 		log.Fatal("err opening config file: ", err)
+	}
+	data, err := ioutil.ReadAll(reader)
+	if err != nil {
+		log.Fatal("err reading file: ", err)
 	}
 	config, err := config.ParseYAML(data)
 	if err != nil {
@@ -115,13 +119,13 @@ func ParseConfigFile() config.Config {
 	return config
 }
 
-func ConfiguredIterator(s *mgo.Session, table config.Table) *mgo.Iter {
+func configuredIterator(s *mgo.Session, table config.Table) *mgo.Iter {
 	collection := s.DB(table.Meta.Database).C(table.Source)
 	selector := table.MongoSelector()
 	return collection.Find(nil).Select(selector).Iter()
 }
 
-func CreateOutputFile(collectionName, extension string) *os.File {
+func createOutputFile(collectionName, extension string) *os.File {
 	// TODO - change to use snapshot time
 	name := time.Now().Add(-1*time.Hour/2).Round(time.Hour).Format(time.RFC3339) + "_mongo_" + collectionName + extension
 	file, err := os.Create(name)
@@ -141,12 +145,12 @@ func ExportData(source optimus.Table, table config.Table, sink optimus.Sink) (in
 	return rows, err
 }
 
-func GzipConfigFile() {
-	input, err := os.Open(*configPath)
+func gzipConfigFile(path string) {
+	input, err := pathio.Reader(path)
 	if err != nil {
 		log.Fatal("error opening config file", err)
 	}
-	outputFile := CreateOutputFile("config", ".yml.gz")
+	outputFile := createOutputFile("config", ".yml.gz")
 	if err != nil {
 		log.Fatal("error creating config file", err)
 	}

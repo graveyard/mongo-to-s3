@@ -18,8 +18,8 @@ type Client struct {
 }
 
 type Instance struct {
-	InstanceId     string
-	PrivateDnsName string
+	InstanceID     string
+	PrivateDNSName string
 	VolumeId       string
 }
 
