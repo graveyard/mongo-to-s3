@@ -57,7 +57,7 @@ func TestValidYAML(t *testing.T) {
 		},
 	}
 
-	for idx, field := range table.Columns {
+	for idx, field := range table.Fields {
 		assert.Equal(t, fields[idx].Destination, field.Destination)
 		assert.Equal(t, fields[idx].Source, field.Source)
 	}
@@ -70,7 +70,7 @@ func TestInvalidYAML(t *testing.T) {
 
 func TestMongoSelector(t *testing.T) {
 	table := Table{
-		Columns: []Field{
+		Fields: []Field{
 			{
 				Source: "test1",
 			}, {
@@ -97,7 +97,7 @@ func TestMongoSelector(t *testing.T) {
 
 func TestFieldMap(t *testing.T) {
 	table := Table{
-		Columns: []Field{
+		Fields: []Field{
 			{
 				Destination: "test1",
 				Source:      "test1",
