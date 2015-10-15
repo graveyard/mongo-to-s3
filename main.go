@@ -21,10 +21,6 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
-const (
-	MONGO_URL = "MONGO_URL"
-)
-
 var (
 	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
 	url        = flag.String("database", "", "Database url if using existing instance")
