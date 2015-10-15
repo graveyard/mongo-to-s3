@@ -36,11 +36,17 @@ func CreateSISDBFromLatestSnapshot(name string) (Instance, error) {
 		line := strings.Split(text, " ")
 		if len(line) == 4 && strings.Contains(text, "mongo_instance:") {
 			return Instance{
-				ID: line[1],
-				IP: line[3],
+				ID:  line[1],
+				IP:  line[3],
+				URL: serverUrl(name, "clever"),
 			}, nil
 		}
 	}
 
 	return Instance{}, errors.New("unable to find output")
+}
+
+func serverUrl(name, database string) string {
+	format := "mongodb://mongodb-%s-dev.ops.clever.com:27017/%v"
+	return fmt.Sprintf(format, name, database)
 }

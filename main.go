@@ -37,7 +37,7 @@ func main() {
 	var instance fab.Instance
 	if *url == "" {
 		instance = StartDB("analytics-test")
-		*url = "mongodb://" + instance.IP + ":27017/clever"
+		*url = instance.URL
 	}
 	s := MongoConnection(*url)
 	log.Println("Connected to mongo")
@@ -45,9 +45,6 @@ func main() {
 	config := ParseConfigFile()
 	GzipConfigFile()
 	for _, table := range config {
-		if table.Source != "districts" {
-			continue // DEBUG
-		}
 		output := CreateOutputFile(table.Destination, ".json.gz")
 		defer output.Close()
 
@@ -76,7 +73,11 @@ func main() {
 
 	c := aws.NewClient("us-west-1")
 	if instance.ID != "" {
-		c.TerminateInstance(instance.ID)
+		log.Println("terminating instance")
+		err := c.TerminateInstance(instance.ID)
+		if err != nil {
+			log.Println("err terminating instance: ", err)
+		}
 	}
 }
 
