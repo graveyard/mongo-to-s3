@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -32,7 +33,10 @@ func main() {
 
 	var instance fab.Instance
 	if *url == "" {
-		instance = startDB("analytics-test")
+		instance, err := fab.CreateSISDBFromLatestSnapshot("analytics-test")
+		if err != nil {
+			log.Fatal("err starting db: ", err)
+		}
 		*url = instance.URL
 	}
 	s := mongoConnection(*url)
@@ -49,8 +53,8 @@ func main() {
 		defer zippedOutput.Close()
 		sink := json.New(zippedOutput)
 
-		iter := configuredIterator(s, table)
-		count, err := ExportData(mongosource.New(iter), table, sink)
+		source := configuredOptimusTable(s, table)
+		count, err := exportData(source, table, sink)
 		if err != nil {
 			log.Fatal("err reading table: ", err)
 		}
@@ -77,16 +81,6 @@ func main() {
 	}
 }
 
-func startDB(instanceName string) fab.Instance {
-	instance, err := fab.CreateSISDBFromLatestSnapshot(instanceName)
-	if err != nil {
-		log.Fatal("err starting db: ", err)
-	}
-	log.Println("instance id: ", instance.ID)
-	log.Println("instance ip: ", instance.IP)
-	return instance
-}
-
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
 func mongoConnection(url string) *mgo.Session {
 	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
@@ -97,6 +91,7 @@ func mongoConnection(url string) *mgo.Session {
 	return s
 }
 
+// parseConfigFile loads the config from wherever it is, then parses it
 func parseConfigFile(path string) config.Config {
 	reader, err := pathio.Reader(path)
 	defer reader.Close()
@@ -115,15 +110,17 @@ func parseConfigFile(path string) config.Config {
 	return config
 }
 
-func configuredIterator(s *mgo.Session, table config.Table) *mgo.Iter {
+func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	collection := s.DB("").C(table.Source)
 	selector := table.MongoSelector()
-	return collection.Find(nil).Select(selector).Iter()
+	iter := collection.Find(nil).Select(selector).Iter()
+	return mongosource.New(iter)
 }
 
 func createOutputFile(collectionName, extension string) *os.File {
 	// TODO - change to use snapshot time
-	name := time.Now().Add(-1*time.Hour/2).Round(time.Hour).Format(time.RFC3339) + "_mongo_" + collectionName + extension
+	now := time.Now().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
+	name := fmt.Sprintf("%v_mongo_%v%v", now, collectionName, extension)
 	file, err := os.Create(name)
 	if err != nil {
 		log.Fatal("err creating output file: ", err)
@@ -131,7 +128,7 @@ func createOutputFile(collectionName, extension string) *os.File {
 	return file
 }
 
-func ExportData(source optimus.Table, table config.Table, sink optimus.Sink) (int, error) {
+func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (int, error) {
 	rows := 0
 	err := transformer.New(source).Fieldmap(table.FieldMap()).Map(
 		func(d optimus.Row) (optimus.Row, error) {

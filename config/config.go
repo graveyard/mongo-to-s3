@@ -21,12 +21,15 @@ type Meta struct {
 	Database string `yaml:"database"`
 }
 
+// ParseYAML marshalls data into a Config
 func ParseYAML(data []byte) (Config, error) {
 	config := Config{}
 	err := yaml.Unmarshal(data, &config)
 	return config, err
 }
 
+// MongoSelector returns a map that can be used in a mongo Select query
+// to limit the fields returned from Mongo
 func (t Table) MongoSelector() map[string]interface{} {
 	selector := make(map[string]interface{})
 

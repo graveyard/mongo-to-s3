@@ -20,7 +20,7 @@ type Client struct {
 type Instance struct {
 	InstanceID     string
 	PrivateDNSName string
-	VolumeId       string
+	VolumeID       string
 }
 
 func NewClient(region string) *Client {
@@ -84,13 +84,10 @@ func (c *Client) RunInstanceFromLatestSnapshot(description string) (*Instance, e
 	return nil, nil
 }
 
-// description = mongo-clever
+// Find Snapshots returns a list of completed snapshots with a tag matching
+// the description
+// description = mongo-clever for SIS DB
 func (c *Client) FindSnapshots(description string) ([]*ec2.Snapshot, error) {
-	// Auto-generated torture: a haiku
-	//	completeString := "complete"       // These are basic types
-	//	descriptionString := "description" // Amazon why use pointers
-	//	statusString := "status"           // So much agony
-
 	input := &ec2.DescribeSnapshotsInput{
 		Filters: []*ec2.Filter{
 			&ec2.Filter{
