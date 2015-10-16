@@ -43,7 +43,7 @@ func main() {
 	log.Println("Connected to mongo")
 
 	config := parseConfigFile(*configPath)
-	gzipConfigFile(*configPath)
+	copyConfigFile(*configPath)
 	for _, table := range config {
 		output := createOutputFile(table.Destination, ".json.gz")
 		defer output.Close()
@@ -138,16 +138,15 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (in
 	return rows, err
 }
 
-func gzipConfigFile(path string) {
+func copyConfigFile(path string) {
 	input, err := pathio.Reader(path)
 	if err != nil {
 		log.Fatal("error opening config file", err)
 	}
-	outputFile := createOutputFile("config", ".yml.gz")
+	output := createOutputFile("config", ".yml")
 	if err != nil {
 		log.Fatal("error creating config file", err)
 	}
-	output := gzip.NewWriter(outputFile)
 	_, err = io.Copy(output, input)
 	if err != nil {
 		log.Fatal("error writing output file: ", err)
