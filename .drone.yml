@@ -19,7 +19,7 @@ publish:
     - $(git rev-parse --short HEAD)
     username: $$docker_username
     when:
-      branch: IP-336-dockerize-worker
+      branch: master
 services:
   - mongodb:2.4
 script:
