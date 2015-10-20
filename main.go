@@ -24,8 +24,8 @@ import (
 
 var (
 	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
-	url        = flag.String("database", "", "Database url if using existing instance")
 	s3         = flag.String("s3", "", "s3 url to upload to (default: none)")
+	url        = flag.Args()[0] // Require a database URL
 )
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
@@ -102,15 +102,8 @@ func main() {
 	flag.Parse()
 
 	var instance fab.Instance
-	if *url == "" {
-		instance, err := fab.CreateSISDBFromLatestSnapshot("analytics-test")
-		if err != nil {
-			log.Fatal("err starting db: ", err)
-		}
-		*url = instance.URL
-	}
-	fmt.Println("url : ", *url)
-	s := mongoConnection(*url)
+	fmt.Println("url : ", url)
+	s := mongoConnection(url)
 	log.Println("Connected to mongo")
 
 	c := aws.NewClient("us-west-1")
