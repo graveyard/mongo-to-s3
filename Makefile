@@ -19,7 +19,8 @@ $(GOLINT):
 	go get github.com/golang/lint/golint
 
 build:
-	GO15VENDOREXPERIMENT=1 go build -o "$@/$(EXECUTABLE)" $(PKG)
+	if [ -a mongo-to-s3 ]; then make clean; fi;
+	GO15VENDOREXPERIMENT=1 go build -o "mongo-to-s3" $(PKG)
 
 $(PKGS): $(GOLINT)
 	@echo ""
@@ -33,4 +34,4 @@ $(PKGS): $(GOLINT)
 	go test -cover -coverprofile=$(GOPATH)/src/$@/c.out $@ -test.v
 
 clean:
-	rm -rf build/
+	rm mongo-to-s3
