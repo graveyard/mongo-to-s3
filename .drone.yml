@@ -24,5 +24,4 @@ services:
   - mongodb:2.4
 script:
   - sudo apt-get update
-  - make test
-  - make build
+  - make all
