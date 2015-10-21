@@ -18,8 +18,7 @@ all: build test
 $(GOLINT):
 	go get github.com/golang/lint/golint
 
-build:
-	if [ -a mongo-to-s3 ]; then make clean; fi;
+build: clean
 	GO15VENDOREXPERIMENT=1 go build -o "mongo-to-s3" $(PKG)
 
 $(PKGS): $(GOLINT)
