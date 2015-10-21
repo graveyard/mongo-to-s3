@@ -33,4 +33,4 @@ $(PKGS): $(GOLINT)
 	go test -cover -coverprofile=$(GOPATH)/src/$@/c.out $@ -test.v
 
 clean:
-	rm mongo-to-s3
+	rm -f mongo-to-s3
