@@ -24,7 +24,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
-	url        = flag.String("database", "", "Database url if using existing instance")
+	url        = flag.String("database", "", "NECESSARY: Database url of existing instance")
 	s3         = flag.String("s3", "", "s3 url to upload to (default: none)")
 )
 
@@ -103,11 +103,7 @@ func main() {
 
 	var instance fab.Instance
 	if *url == "" {
-		instance, err := fab.CreateSISDBFromLatestSnapshot("analytics-test")
-		if err != nil {
-			log.Fatal("err starting db: ", err)
-		}
-		*url = instance.URL
+		log.Fatal("Database url of existing instance is necessary")
 	}
 	fmt.Println("url : ", *url)
 	s := mongoConnection(*url)
