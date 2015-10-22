@@ -101,7 +101,6 @@ func copyConfigFile(timestamp, path string) {
 func main() {
 	flag.Parse()
 
-	var instance fab.Instance
 	if *url == "" {
 		log.Fatal("Database url of existing instance is necessary")
 	}
@@ -112,6 +111,9 @@ func main() {
 	c := aws.NewClient("us-west-1")
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
+
+	/* UNUSED for now: https://clever.atlassian.net/browse/IP-349
+	//var instance fab.Instance
 	if instance.SnapshotID != "" {
 		snapshot, err := c.FindSnapshot(instance.SnapshotID)
 		if err != nil {
@@ -119,7 +121,7 @@ func main() {
 		} else {
 			timestamp = snapshot.StartTime.Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 		}
-	}
+	} */
 
 	config := parseConfigFile(*configPath)
 	copyConfigFile(timestamp, *configPath)
@@ -150,11 +152,12 @@ func main() {
 		}
 	}
 
+	/* UNUSED until we can figure out how to deploy: https://clever.atlassian.net/browse/IP-349
 	if instance.ID != "" {
 		log.Println("terminating instance")
 		err := c.TerminateInstance(instance.ID)
 		if err != nil {
 			log.Println("err terminating instance: ", err)
 		}
-	}
+	} */
 }
