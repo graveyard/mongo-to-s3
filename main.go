@@ -25,7 +25,7 @@ import (
 var (
 	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
 	url        = flag.String("database", "", "NECESSARY: Database url of existing instance")
-	s3         = flag.String("s3", "", "s3 url to upload to (default: none)")
+	bucket     = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
 )
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
@@ -105,17 +105,19 @@ func main() {
 		log.Fatal("Database url of existing instance is necessary")
 	}
 	fmt.Println("url : ", *url)
-	s := mongoConnection(*url)
+	mongoClient := mongoConnection(*url)
 	log.Println("Connected to mongo")
 
-	c := aws.NewClient("us-west-1")
+	// create aws client
+	awsClient := aws.NewClient("us-west-1")
+
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 
 	/* UNUSED for now: https://clever.atlassian.net/browse/IP-349
 	//var instance fab.Instance
 	if instance.SnapshotID != "" {
-		snapshot, err := c.FindSnapshot(instance.SnapshotID)
+		snapshot, err := awsClient.FindSnapshot(instance.SnapshotID)
 		if err != nil {
 			log.Println("err finding latest snapshot: ", err)
 		} else {
@@ -126,6 +128,7 @@ func main() {
 	config := parseConfigFile(*configPath)
 	copyConfigFile(timestamp, *configPath)
 	for _, table := range config {
+		// required to do this since we can't pipe together the gzip output and pathio, unfortunately
 		output := createOutputFile(timestamp, table.Destination, ".json.gz")
 		defer output.Close()
 
@@ -134,7 +137,7 @@ func main() {
 		defer zippedOutput.Close()
 		sink := json.New(zippedOutput)
 
-		source := configuredOptimusTable(s, table)
+		source := configuredOptimusTable(mongoClient, table)
 		count, err := exportData(source, table, sink)
 		if err != nil {
 			log.Fatal("err reading table: ", err)
@@ -142,11 +145,11 @@ func main() {
 		log.Println(table.Destination, " collection: ", count, " items")
 
 		// Upload file to bucket
-		if *s3 != "" {
+		if *bucket != "" {
 			if _, err := output.Seek(0, 0); err != nil {
 				log.Fatal("err reading output for upload: ", err)
 			}
-			if err := pathio.WriteReader(*s3, output); err != nil {
+			if err := pathio.WriteReader(*bucket, output); err != nil {
 				log.Fatal("err uploading to s3 bucket: ", err)
 			}
 		}
