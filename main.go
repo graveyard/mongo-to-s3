@@ -10,6 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	//"github.com/Clever/mongo-to-s3/aws"
 	"github.com/Clever/mongo-to-s3/config"
 	//"github.com/Clever/mongo-to-s3/fab"
@@ -124,30 +127,46 @@ func main() {
 	copyConfigFile(timestamp, *configPath)
 	for _, table := range config {
 		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
-		output, err := os.Create(outputName)
-		if err != nil {
-		  log.Fatal("err creating output file: ", err)
-		}
 
-		// Gzip output to the file
-		zippedOutput := gzip.NewWriter(output) // sorcery
-		defer zippedOutput.Close()
-		sink := json.New(zippedOutput)
+		// Gzip output into pipe so that we don't need to store locally
+		reader, writer := io.Pipe()
+		go func() {
+			zippedOutput := gzip.NewWriter(writer) // sorcery
+			sink := json.New(zippedOutput)
 
-		source := configuredOptimusTable(mongoClient, table)
-		count, err := exportData(source, table, sink)
-		if err != nil {
-			log.Fatal("err reading table: ", err)
-		}
-		log.Println(table.Destination, " collection: ", count, " items")
+			source := configuredOptimusTable(mongoClient, table)
+			count, err := exportData(source, table, sink)
+			if err != nil {
+				log.Fatal("err reading table: ", err)
+			}
+			log.Println(table.Destination, " collection: ", count, " items")
 
+			// ALWAYS close the gzip first
+			zippedOutput.Close()
+			writer.Close()
+		}()
 		// Upload file to bucket
 		if *bucket != "" {
-			if _, err := output.Seek(0, 0); err != nil {
-				log.Fatal("err reading output for upload: ", err)
+			s3Path := fmt.Sprintf("s3://%s/%s", *bucket, outputName)
+			log.Printf("uploading file: %s to path: %s", outputName, s3Path)
+			region, err := getRegionForBucket(*bucket)
+			if err != nil {
+				log.Fatalf("err getting region for bucket: %s", err)
 			}
-			if err := pathio.WriteReader(*bucket, output); err != nil {
-				log.Fatal("err uploading to s3 bucket: ", err)
+			log.Printf("found bucket region: %s", region)
+
+			// required to do this since we can't pipe together the gzip output and pathio, unfortunately
+			// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
+			// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
+			client := s3.New(aws.NewConfig().WithRegion(region))
+			uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
+			_, err = uploader.Upload(&s3manager.UploadInput{
+				Body:   reader,
+				Bucket: aws.String(*bucket),
+				Key:    aws.String(outputName),
+			})
+			if err != nil {
+				log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
 			}
 		}
 	}
@@ -160,4 +179,24 @@ func main() {
 			log.Println("err terminating instance: ", err)
 		}
 	} */
+}
+
+// getRegionForBucket looks up the region name for the given bucket
+func getRegionForBucket(name string) (string, error) {
+	// Any region will work for the region lookup, but the request MUST use
+	// PathStyle
+	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
+	client := s3.New(config)
+	params := s3.GetBucketLocationInput{
+		Bucket: aws.String(name),
+	}
+	resp, err := client.GetBucketLocation(&params)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get location for bucket '%s', %s", name, err)
+	}
+	if resp.LocationConstraint == nil {
+		// "US Standard", returns an empty region. So return any region in the US
+		return "us-east-1", nil
+	}
+	return *resp.LocationConstraint, nil
 }
