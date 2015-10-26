@@ -110,7 +110,7 @@ func main() {
 
 
 	// Times are rounded down to the nearest hour
-	timestamp := time.Now().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
+	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 
 	//awsClient := aws.NewClient("us-west-1")
 	/* UNUSED for now: https://clever.atlassian.net/browse/IP-349
