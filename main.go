@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -16,6 +18,7 @@ import (
 	//"github.com/Clever/mongo-to-s3/fab"
 
 	"github.com/Clever/pathio"
+	"gopkg.in/Clever/gearman.v2"
 	"gopkg.in/Clever/optimus.v3"
 	json "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
@@ -79,7 +82,7 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (in
 	return rows, err
 }
 
-func copyConfigFile(bucket, timestamp, path string) {
+func copyConfigFile(bucket, timestamp, path string) string {
 	input, err := pathio.Reader(path)
 	if err != nil {
 		log.Fatal("error opening config file", err)
@@ -97,18 +100,28 @@ func copyConfigFile(bucket, timestamp, path string) {
 	if err != nil {
 		log.Fatal("error writing output file: ", err)
 	}
+	return outPath
 }
 
 func main() {
 	flag.Parse()
-
 	if *url == "" {
 		log.Fatal("Database url of existing instance is necessary")
 	}
-	fmt.Println("url : ", *url)
+	fmt.Println("Connecting to mongo: ", *url)
 	mongoClient := mongoConnection(*url)
 	log.Println("Connected to mongo")
 
+	// create gearman client
+	gearmanURL := os.Getenv("GEARMAN_URL")
+	if gearmanURL == "" {
+		log.Fatal("Error: GEARMAN_URL must be set!")
+	}
+
+	gearmanClient, err := gearman.NewClient("tcp4", gearmanURL)
+	if err != nil {
+		log.Fatalf("Issue creating gearman client: %s", err)
+	}
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
@@ -126,8 +139,10 @@ func main() {
 	} */
 
 	config := parseConfigFile(*configPath)
-	copyConfigFile(*bucket, timestamp, *configPath)
+	confFileName := copyConfigFile(*bucket, timestamp, *configPath)
+	var tables []string
 	for _, table := range config {
+		tables = append(tables, table.Destination)
 		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
 
 		// Gzip output into pipe so that we don't need to store locally
@@ -172,6 +187,13 @@ func main() {
 			}
 		}
 	}
+
+	// submit gearman job for all tables
+	// doing this all at the end to ensure that the data in redshift is updated
+	// at the same time for different collections
+	payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --config %s", *bucket, strings.Join(tables, ","), confFileName)
+	log.Printf("posting to s3-to-redshift: %s", payload)
+	gearmanClient.SubmitBackground("s3-to-redshift", []byte(payload))
 
 	/* UNUSED until we can figure out how to deploy: https://clever.atlassian.net/browse/IP-349
 	if instance.ID != "" {
