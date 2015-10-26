@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/Clever/mongo-to-s3/aws"
+	//"github.com/Clever/mongo-to-s3/aws"
 	"github.com/Clever/mongo-to-s3/config"
-	"github.com/Clever/mongo-to-s3/fab"
+	//"github.com/Clever/mongo-to-s3/fab"
 
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
@@ -108,12 +108,11 @@ func main() {
 	mongoClient := mongoConnection(*url)
 	log.Println("Connected to mongo")
 
-	// create aws client
-	awsClient := aws.NewClient("us-west-1")
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 
+	//awsClient := aws.NewClient("us-west-1")
 	/* UNUSED for now: https://clever.atlassian.net/browse/IP-349
 	//var instance fab.Instance
 	if instance.SnapshotID != "" {
