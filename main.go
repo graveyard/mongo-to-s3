@@ -64,13 +64,8 @@ func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	return mongosource.New(iter)
 }
 
-func createOutputFile(timestamp, collectionName, extension string) *os.File {
-	name := fmt.Sprintf("%v_mongo_%v%v", timestamp, collectionName, extension)
-	file, err := os.Create(name)
-	if err != nil {
-		log.Fatal("err creating output file: ", err)
-	}
-	return file
+func formatFilename(timestamp, collectionName, extension string) string {
+	return fmt.Sprintf("mongo_%s_%s%s", collectionName, timestamp, extension)
 }
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (int, error) {
@@ -88,7 +83,8 @@ func copyConfigFile(timestamp, path string) {
 	if err != nil {
 		log.Fatal("error opening config file", err)
 	}
-	output := createOutputFile(timestamp, "config", ".yml")
+	outName := formatFilename(timestamp, "config", ".yml")
+	output, err := os.Create(outName)
 	if err != nil {
 		log.Fatal("error creating config file", err)
 	}
@@ -127,9 +123,11 @@ func main() {
 	config := parseConfigFile(*configPath)
 	copyConfigFile(timestamp, *configPath)
 	for _, table := range config {
-		// required to do this since we can't pipe together the gzip output and pathio, unfortunately
-		output := createOutputFile(timestamp, table.Destination, ".json.gz")
-		defer output.Close()
+		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
+		output, err := os.Create(outputName)
+		if err != nil {
+		  log.Fatal("err creating output file: ", err)
+		}
 
 		// Gzip output to the file
 		zippedOutput := gzip.NewWriter(output) // sorcery
