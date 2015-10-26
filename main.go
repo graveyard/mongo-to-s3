@@ -7,14 +7,12 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
+	"github.com/Clever/mongo-to-s3/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	//"github.com/Clever/mongo-to-s3/aws"
-	"github.com/Clever/mongo-to-s3/config"
 	//"github.com/Clever/mongo-to-s3/fab"
 
 	"github.com/Clever/pathio"
@@ -81,17 +79,21 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (in
 	return rows, err
 }
 
-func copyConfigFile(timestamp, path string) {
+func copyConfigFile(bucket, timestamp, path string) {
 	input, err := pathio.Reader(path)
 	if err != nil {
 		log.Fatal("error opening config file", err)
 	}
-	outName := formatFilename(timestamp, "config", ".yml")
-	output, err := os.Create(outName)
-	if err != nil {
-		log.Fatal("error creating config file", err)
+	outPath := formatFilename(timestamp, "config", ".yml")
+	if bucket != "" {
+		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
-	_, err = io.Copy(output, input)
+	outputBytes, err := ioutil.ReadAll(input)
+	if err != nil {
+		log.Fatal("error reading config file: ", err)
+	}
+	log.Printf("uploading conf file to: %s", outPath)
+	err = pathio.Write(outPath, outputBytes)
 	if err != nil {
 		log.Fatal("error writing output file: ", err)
 	}
@@ -124,7 +126,7 @@ func main() {
 	} */
 
 	config := parseConfigFile(*configPath)
-	copyConfigFile(timestamp, *configPath)
+	copyConfigFile(*bucket, timestamp, *configPath)
 	for _, table := range config {
 		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
 
