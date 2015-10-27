@@ -43,15 +43,15 @@ func (t Table) MongoSelector() map[string]interface{} {
 	return selector
 }
 
+// FieldMap returns a mapping of all fields between source and destination
 func (t Table) FieldMap() map[string][]string {
 	mappings := make(map[string][]string)
 
 	for _, field := range t.Fields {
-		if field.Destination == "" {
-			continue
+		if field.Destination != "" {
+			list := mappings[field.Source]
+			mappings[field.Source] = append(list, field.Destination)
 		}
-		list := mappings[field.Source]
-		mappings[field.Source] = append(list, field.Destination)
 	}
 
 	return mappings
