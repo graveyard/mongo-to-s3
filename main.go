@@ -72,9 +72,10 @@ func formatFilename(timestamp, collectionName, extension string) string {
 	return fmt.Sprintf("mongo_%s_%s%s", collectionName, timestamp, extension)
 }
 
-func exportData(source optimus.Table, table config.Table, sink optimus.Sink) (int, error) {
+func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
 	rows := 0
-	err := transformer.New(source).Fieldmap(table.FieldMap()).Map(
+	datePopulator := table.GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
+	err := transformer.New(source).Fieldmap(table.FieldMap()).Map(datePopulator).Map(
 		func(d optimus.Row) (optimus.Row, error) {
 			rows = rows + 1
 			return optimus.Row(d), nil
@@ -152,7 +153,7 @@ func main() {
 			sink := json.New(zippedOutput)
 
 			source := configuredOptimusTable(mongoClient, table)
-			count, err := exportData(source, table, sink)
+			count, err := exportData(source, table, sink, timestamp)
 			if err != nil {
 				log.Fatal("err reading table: ", err)
 			}

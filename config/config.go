@@ -1,6 +1,7 @@
 package config
 
 import (
+	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
 )
 
@@ -10,6 +11,7 @@ type Table struct {
 	Destination string  `yaml:"dest"`
 	Source      string  `yaml:"source"`
 	Fields      []Field `yaml:"columns"`
+	Meta        Meta    `yaml:"meta"`
 }
 
 type Field struct {
@@ -18,7 +20,8 @@ type Field struct {
 }
 
 type Meta struct {
-	Database string `yaml:"database"`
+	Database       string `yaml:"database"`
+	DataDateColumn string `yaml:"datadatecolumn"`
 }
 
 // ParseYAML marshalls data into a Config
@@ -40,16 +43,25 @@ func (t Table) MongoSelector() map[string]interface{} {
 	return selector
 }
 
+// FieldMap returns a mapping of all fields between source and destination
 func (t Table) FieldMap() map[string][]string {
 	mappings := make(map[string][]string)
 
 	for _, field := range t.Fields {
-		if field.Destination == "" {
-			continue
+		if field.Destination != "" {
+			list := mappings[field.Source]
+			mappings[field.Source] = append(list, field.Destination)
 		}
-		list := mappings[field.Source]
-		mappings[field.Source] = append(list, field.Destination)
 	}
 
 	return mappings
+}
+
+// GetPopulateDateFn returns a function which creates and populates the data date column
+// we do this so that we have a good idea of when the data was created downstream
+func (t Table) GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		r[dataDateColumn] = timestamp
+		return r, nil
+	}
 }
