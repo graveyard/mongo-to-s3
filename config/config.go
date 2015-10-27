@@ -1,6 +1,7 @@
 package config
 
 import (
+	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
 )
 
@@ -54,4 +55,13 @@ func (t Table) FieldMap() map[string][]string {
 	}
 
 	return mappings
+}
+
+// GetPopulateDateFn returns a function which creates and populates the data date column
+// we do this so that we have a good idea of when the data was created downstream
+func (t Table) GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		r[dataDateColumn] = timestamp
+		return r, nil
+	}
 }
