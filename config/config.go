@@ -10,6 +10,7 @@ type Table struct {
 	Destination string  `yaml:"dest"`
 	Source      string  `yaml:"source"`
 	Fields      []Field `yaml:"columns"`
+	Meta        Meta    `yaml:"meta"`
 }
 
 type Field struct {
@@ -18,7 +19,8 @@ type Field struct {
 }
 
 type Meta struct {
-	Database string `yaml:"database"`
+	Database       string `yaml:"database"`
+	DataDateColumn string `yaml:"datadatecolumn"`
 }
 
 // ParseYAML marshalls data into a Config
