@@ -65,3 +65,37 @@ func (t Table) GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.
 		return r, nil
 	}
 }
+
+// Flattener returns a function which flattens nested optimus rows into flat rows
+// with dot-separated keys
+func Flattener() func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		outRow := map[string]interface{}{}
+		flatten(rowToMap(r), "", &outRow)
+		return optimus.Row(outRow), nil
+	}
+}
+
+func rowToMap(r optimus.Row) map[string]interface{} {
+	m := map[string]interface{}{}
+	for k, v := range r {
+		m[k] = v
+	}
+	return m
+}
+
+// flattens a nested json struct
+// to start, pass "" as a lkey
+func flatten(inputJSON map[string]interface{}, lkey string, flattened *map[string]interface{}) {
+	for rkey, value := range inputJSON {
+		key := lkey + rkey
+		switch v := value.(type) {
+		case map[string]interface{}:
+			flatten(v, key+".", flattened)
+		case optimus.Row:
+			flatten(rowToMap(v), key+".", flattened)
+		default:
+			(*flattened)[key] = v
+		}
+	}
+}

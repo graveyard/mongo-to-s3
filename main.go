@@ -75,7 +75,7 @@ func formatFilename(timestamp, collectionName, extension string) string {
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
 	rows := 0
 	datePopulator := table.GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
-	err := transformer.New(source).Fieldmap(table.FieldMap()).Map(datePopulator).Map(
+	err := transformer.New(source).Map(config.Flattener()).Fieldmap(table.FieldMap()).Map(datePopulator).Map(
 		func(d optimus.Row) (optimus.Row, error) {
 			rows = rows + 1
 			return optimus.Row(d), nil

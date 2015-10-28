@@ -1,8 +1,10 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/Clever/optimus.v3"
 )
 
 const (
@@ -107,6 +109,9 @@ func TestFieldMap(t *testing.T) {
 			}, {
 				Destination: "test3",
 				Source:      "test2",
+			}, {
+				Destination: "foo",
+				Source:      "test.foo",
 			},
 		},
 	}
@@ -116,8 +121,32 @@ func TestFieldMap(t *testing.T) {
 	// Assert fields are mapped correctly source -> destination
 	assert.Equal(t, []string{"test1"}, mapping["test1"])
 	assert.Equal(t, []string{"test_2", "test3"}, mapping["test2"])
+	assert.Equal(t, []string{"foo"}, mapping["test.foo"])
 
 	// Check for destinations being mapped
 	_, ok := mapping["test3"]
 	assert.False(t, ok)
+}
+
+func TestFlatten(t *testing.T) {
+	test := []optimus.Row{
+		{"foo": map[string]interface{}{"bar": map[string]interface{}{"boom": 1}, "baz": 2}},
+		{"foo": optimus.Row{"bar": map[string]interface{}{"boom": "1"}, "baz": "2"}},
+		{"abc": 123},
+		{"def": []string{"1", "2"}},
+	}
+
+	expected := []optimus.Row{
+		{"foo.bar.boom": 1, "foo.baz": 2},
+		{"foo.bar.boom": "1", "foo.baz": "2"},
+		{"abc": 123},
+		{"def": []string{"1", "2"}},
+	}
+
+	f := Flattener()
+	for i, val := range test {
+		valueRet, err := f(val)
+		assert.NoError(t, err)
+		assert.Equal(t, expected[i], valueRet)
+	}
 }
