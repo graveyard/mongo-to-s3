@@ -59,9 +59,43 @@ func (t Table) FieldMap() map[string][]string {
 
 // GetPopulateDateFn returns a function which creates and populates the data date column
 // we do this so that we have a good idea of when the data was created downstream
-func (t Table) GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
+func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
 	return func(r optimus.Row) (optimus.Row, error) {
 		r[dataDateColumn] = timestamp
 		return r, nil
+	}
+}
+
+// Flattener returns a function which flattens nested optimus rows into flat rows
+// with dot-separated keys
+func Flattener() func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		outRow := optimus.Row{}
+		flatten(r, "", &outRow)
+		return outRow, nil
+	}
+}
+
+func rowToMap(r optimus.Row) map[string]interface{} {
+	m := map[string]interface{}{}
+	for k, v := range r {
+		m[k] = v
+	}
+	return m
+}
+
+// flattens a nested json struct
+// to start, pass "" as a lkey
+func flatten(inputJSON optimus.Row, lkey string, flattened *optimus.Row) {
+	for rkey, value := range inputJSON {
+		key := lkey + rkey
+		switch v := value.(type) {
+		case map[string]interface{}:
+			flatten(optimus.Row(v), key+".", flattened)
+		case optimus.Row:
+			flatten(v, key+".", flattened)
+		default:
+			(*flattened)[key] = v
+		}
 	}
 }
