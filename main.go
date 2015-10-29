@@ -194,7 +194,9 @@ func main() {
 	// at the same time for different collections
 	payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --config %s", *bucket, strings.Join(tables, ","), confFileName)
 	log.Printf("posting to s3-to-redshift: %s", payload)
-	gearmanClient.SubmitBackground("s3-to-redshift", []byte(payload))
+	if err := gearmanClient.SubmitBackground("s3-to-redshift", []byte(payload)); err != nil {
+		log.Fatalf("error posting to gearman: %s", err)
+	}
 
 	/* UNUSED until we can figure out how to deploy: https://clever.atlassian.net/browse/IP-349
 	if instance.ID != "" {
