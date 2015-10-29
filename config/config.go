@@ -59,7 +59,7 @@ func (t Table) FieldMap() map[string][]string {
 
 // GetPopulateDateFn returns a function which creates and populates the data date column
 // we do this so that we have a good idea of when the data was created downstream
-func (t Table) GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
+func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
 	return func(r optimus.Row) (optimus.Row, error) {
 		r[dataDateColumn] = timestamp
 		return r, nil
