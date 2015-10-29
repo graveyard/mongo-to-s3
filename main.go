@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -88,7 +89,14 @@ func copyConfigFile(bucket, timestamp, path string) string {
 	if err != nil {
 		log.Fatal("error opening config file", err)
 	}
-	outPath := formatFilename(timestamp, "config", ".yml")
+	// config_name is parsed from the input path b/c we have a different configs`
+	// get the yaml file at the end of the path
+	pathRegex := regexp.MustCompile("(.*/)?(.+)\\.yml")
+	matches := pathRegex.FindStringSubmatch(path)
+	if len(matches) < 3 {
+		log.Fatalf("issue parsing config filename from config path: %s, err: %s", path, err)
+	}
+	outPath := formatFilename(timestamp, matches[2], ".yml")
 	if bucket != "" {
 		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
