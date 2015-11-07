@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
 )
@@ -94,6 +95,9 @@ func flatten(inputJSON optimus.Row, lkey string, flattened *optimus.Row) {
 			flatten(optimus.Row(v), key+".", flattened)
 		case optimus.Row:
 			flatten(v, key+".", flattened)
+		case []interface{}:
+			jsonVal, _ := json.Marshal(v)
+			(*flattened)[key] = string(jsonVal)
 		default:
 			(*flattened)[key] = v
 		}
