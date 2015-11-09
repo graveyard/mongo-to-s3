@@ -134,6 +134,11 @@ func TestFlatten(t *testing.T) {
 		{"foo": optimus.Row{"bar": map[string]interface{}{"boom": "1"}, "baz": "2"}},
 		{"abc": 123},
 		{"def": []string{"1", "2"}},
+		{"auth_requests_test": []interface{}{
+			map[string]interface{}{"type": "sis"}}},
+		{"auth_requests_test_long": []interface{}{
+			map[string]interface{}{"a": "b", "c": "d"},
+			map[string]interface{}{"e": "f"}}},
 	}
 
 	expected := []optimus.Row{
@@ -141,6 +146,8 @@ func TestFlatten(t *testing.T) {
 		{"foo.bar.boom": "1", "foo.baz": "2"},
 		{"abc": 123},
 		{"def": []string{"1", "2"}},
+		{"auth_requests_test": `[{"type":"sis"}]`},
+		{"auth_requests_test_long": `[{"a":"b","c":"d"},{"e":"f"}]`},
 	}
 
 	f := Flattener()
