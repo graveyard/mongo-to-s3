@@ -122,7 +122,7 @@ func main() {
 	log.Println("Connected to mongo")
 
 	// create gearman client
-	gearmanURL := os.Getenv("GEARMAN_URL")
+	gearmanURL := strings.TrimPrefix(os.Getenv("GEARMAN_URL"), "tcp://")
 	if gearmanURL == "" {
 		log.Fatal("Error: GEARMAN_URL must be set!")
 	}
