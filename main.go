@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -16,10 +18,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	//"github.com/Clever/mongo-to-s3/fab"
 
 	"github.com/Clever/pathio"
-	"gopkg.in/Clever/gearman.v2"
 	"gopkg.in/Clever/optimus.v3"
 	json "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
@@ -121,17 +121,6 @@ func main() {
 	mongoClient := mongoConnection(*url)
 	log.Println("Connected to mongo")
 
-	// create gearman client
-	gearmanURL := strings.TrimPrefix(os.Getenv("GEARMAN_URL"), "tcp://")
-	if gearmanURL == "" {
-		log.Fatal("Error: GEARMAN_URL must be set!")
-	}
-
-	gearmanClient, err := gearman.NewClient("tcp4", gearmanURL)
-	if err != nil {
-		log.Fatalf("Issue creating gearman client: %s", err)
-	}
-
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 
@@ -171,6 +160,7 @@ func main() {
 			zippedOutput.Close()
 			writer.Close()
 		}()
+
 		// Upload file to bucket
 		if *bucket != "" {
 			s3Path := fmt.Sprintf("s3://%s/%s", *bucket, outputName)
@@ -200,10 +190,23 @@ func main() {
 	// submit gearman job for all tables
 	// doing this all at the end to ensure that the data in redshift is updated
 	// at the same time for different collections
-	payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s", *bucket, strings.Join(tables, ","), confFileName)
-	log.Printf("posting to s3-to-redshift: %s", payload)
-	if err := gearmanClient.SubmitBackground("s3-to-redshift", []byte(payload)); err != nil {
-		log.Fatalf("error posting to gearman: %s", err)
+
+	if len(os.Getenv("CLEVER_JOB_ENDPOINT")) == 0 {
+		log.Println("Not posting s3-to-redshift job")
+	} else {
+		log.Println("Submitting job to Gearman admin")
+		client := &http.Client{}
+		endpoint := os.Getenv("CLEVER_JOB_ENDPOINT") + "/s3-to-redshift"
+		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s", *bucket, strings.Join(tables, ","), confFileName)
+		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))
+		if err != nil {
+			log.Fatalf("Error creating new request: %s", err)
+		}
+		req.Header.Add("Content-Type", "text/plain")
+		_, err = client.Do(req)
+		if err != nil {
+			log.Fatalf("Error submitting job:%s", err)
+		}
 	}
 
 	/* UNUSED until we can figure out how to deploy: https://clever.atlassian.net/browse/IP-349
