@@ -64,8 +64,7 @@ func parseConfigFile(path string) config.Config {
 
 func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	collection := s.DB("").C(table.Source)
-	selector := table.MongoSelector()
-	iter := collection.Find(nil).Select(selector).Iter()
+	iter := collection.Find(nil).Iter()
 	return mongosource.New(iter)
 }
 

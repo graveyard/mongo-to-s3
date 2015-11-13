@@ -5,6 +5,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/Clever/optimus.v3"
+	"gopkg.in/Clever/optimus.v3/sources/slice"
+	"gopkg.in/Clever/optimus.v3/tests"
+	"gopkg.in/Clever/optimus.v3/transformer"
 )
 
 const (
@@ -70,39 +73,12 @@ func TestInvalidYAML(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestMongoSelector(t *testing.T) {
-	table := Table{
-		Fields: []Field{
-			{
-				Source: "test1",
-			}, {
-				Destination: "test",
-				Source:      "test2",
-			}, {
-				Destination: "test3",
-				Source:      "test3",
-			},
-		},
-	}
-
-	selector := table.MongoSelector()
-
-	// Check that every source is properly selected
-	assert.Equal(t, 1, selector["test1"])
-	assert.Equal(t, 1, selector["test2"])
-	assert.Equal(t, 1, selector["test3"])
-
-	// Check that destinations are not being selected
-	_, ok := selector["test"]
-	assert.False(t, ok)
-}
-
 func TestFieldMap(t *testing.T) {
 	table := Table{
 		Fields: []Field{
 			{
-				Destination: "test1",
-				Source:      "test1",
+				Destination: "name",
+				Source:      "name",
 			}, {
 				Destination: "test_2",
 				Source:      "test2",
@@ -112,6 +88,9 @@ func TestFieldMap(t *testing.T) {
 			}, {
 				Destination: "foo",
 				Source:      "test.foo",
+			}, {
+				Destination: "name_first",
+				Source:      "name.first",
 			},
 		},
 	}
@@ -119,13 +98,47 @@ func TestFieldMap(t *testing.T) {
 	mapping := table.FieldMap()
 
 	// Assert fields are mapped correctly source -> destination
-	assert.Equal(t, []string{"test1"}, mapping["test1"])
+	assert.Equal(t, []string{"name"}, mapping["name"])
 	assert.Equal(t, []string{"test_2", "test3"}, mapping["test2"])
 	assert.Equal(t, []string{"foo"}, mapping["test.foo"])
+	assert.Equal(t, []string{"name_first"}, mapping["name.first"])
 
 	// Check for destinations being mapped
 	_, ok := mapping["test3"]
 	assert.False(t, ok)
+}
+
+func TestOptimusFieldMap(t *testing.T) {
+	table := Table{
+		Fields: []Field{
+			{
+				Destination: "name",
+				Source:      "name",
+			}, {
+				Destination: "name_first",
+				Source:      "name.first",
+			},
+		},
+	}
+	mapping := table.FieldMap()
+
+	inputRows := []optimus.Row{
+		{"name": "foo"},
+		{"name.first": "bar"},
+		{"do_not_want": "nope"}, // ensure fields we don't want are not mapped
+	}
+	expectedRows := []optimus.Row{
+		{"name": "foo"},
+		{"name_first": "bar"},
+		{},
+	}
+
+	resTable := transformer.New(slice.New(inputRows)).Fieldmap(mapping).Table()
+	rows := tests.GetRows(resTable)
+
+	for i := range rows {
+		assert.Equal(t, expectedRows[i], rows[i])
+	}
 }
 
 func TestFlatten(t *testing.T) {
@@ -133,6 +146,7 @@ func TestFlatten(t *testing.T) {
 		{"foo": map[string]interface{}{"bar": map[string]interface{}{"boom": 1}, "baz": 2}},
 		{"foo": optimus.Row{"bar": map[string]interface{}{"boom": "1"}, "baz": "2"}},
 		{"abc": 123},
+		{"name": "foo"},
 		{"def": []string{"1", "2"}},
 		{"auth_requests_test": []interface{}{
 			map[string]interface{}{"type": "sis"}}},
@@ -145,6 +159,7 @@ func TestFlatten(t *testing.T) {
 		{"foo.bar.boom": 1, "foo.baz": 2},
 		{"foo.bar.boom": "1", "foo.baz": "2"},
 		{"abc": 123},
+		{"name": "foo"},
 		{"def": []string{"1", "2"}},
 		{"auth_requests_test": `[{"type":"sis"}]`},
 		{"auth_requests_test_long": `[{"a":"b","c":"d"},{"e":"f"}]`},

@@ -32,18 +32,6 @@ func ParseYAML(data []byte) (Config, error) {
 	return config, err
 }
 
-// MongoSelector returns a map that can be used in a mongo Select query
-// to limit the fields returned from Mongo
-func (t Table) MongoSelector() map[string]interface{} {
-	selector := make(map[string]interface{})
-
-	for _, field := range t.Fields {
-		selector[field.Source] = 1
-	}
-
-	return selector
-}
-
 // FieldMap returns a mapping of all fields between source and destination
 func (t Table) FieldMap() map[string][]string {
 	mappings := make(map[string][]string)
