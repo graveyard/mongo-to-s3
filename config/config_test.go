@@ -161,8 +161,11 @@ func TestFlatten(t *testing.T) {
 		{"abc": 123},
 		{"name": "foo"},
 		{"def": []string{"1", "2"}},
-		{"auth_requests_test": `[{"type":"sis"}]`},
-		{"auth_requests_test_long": `[{"a":"b","c":"d"},{"e":"f"}]`},
+		{"auth_requests_test": `[{"type":"sis"}]`, "auth_requests_test.type": "sis"},
+		{"auth_requests_test_long": `[{"a":"b","c":"d"},{"e":"f"}]`,
+			"auth_requests_test_long.a": "b",
+			"auth_requests_test_long.c": "d",
+			"auth_requests_test_long.e": "f"},
 	}
 
 	f := Flattener()
