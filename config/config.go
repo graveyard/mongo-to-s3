@@ -86,6 +86,14 @@ func flatten(inputJSON optimus.Row, lkey string, flattened *optimus.Row) {
 		case []interface{}:
 			jsonVal, _ := json.Marshal(v)
 			(*flattened)[key] = string(jsonVal)
+			for _, subvalues := range v {
+				switch sv := subvalues.(type) {
+				case map[string]interface{}:
+					flatten(optimus.Row(sv), key+".", flattened)
+				case optimus.Row:
+					flatten(sv, key+".", flattened)
+				}
+			}
 		default:
 			(*flattened)[key] = v
 		}
