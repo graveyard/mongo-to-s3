@@ -54,12 +54,12 @@ func parseConfigFile(path string) config.Config {
 	if err != nil {
 		log.Fatal("err reading file: ", err)
 	}
-	config, err := config.ParseYAML(data)
+	configYaml, err := config.ParseYAML(data)
 	if err != nil {
 		log.Fatal("err parsing config file: ", err)
 	}
 
-	return config
+	return configYaml
 }
 
 func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
@@ -111,6 +111,21 @@ func copyConfigFile(bucket, timestamp, path string) string {
 	return outPath
 }
 
+// Always compute students last, if it exists, since the number is so large
+func orderTables(configYaml config.Config) []config.Table {
+	var tableOrder []config.Table
+	for key, table := range configYaml {
+		if key == "students" {
+			continue
+		}
+		tableOrder = append(tableOrder, table)
+	}
+	if table, ok := configYaml["students"]; ok {
+		tableOrder = append(tableOrder, table)
+	}
+	return tableOrder
+}
+
 func main() {
 	flag.Parse()
 	if *url == "" {
@@ -135,10 +150,11 @@ func main() {
 		}
 	} */
 
-	config := parseConfigFile(*configPath)
+	configYaml := parseConfigFile(*configPath)
 	confFileName := copyConfigFile(*bucket, timestamp, *configPath)
 	var tables []string
-	for _, table := range config {
+	tableOrder := orderTables(configYaml)
+	for _, table := range tableOrder {
 		tables = append(tables, table.Destination)
 		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
 
