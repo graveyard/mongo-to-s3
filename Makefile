@@ -34,3 +34,5 @@ $(PKGS): $(GOLINT)
 
 clean:
 	rm -f mongo-to-s3
+	rm -f c.out
+	rm -f config/c.out
