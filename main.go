@@ -28,9 +28,10 @@ import (
 )
 
 var (
-	configPath = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
-	url        = flag.String("database", "", "NECESSARY: Database url of existing instance")
-	bucket     = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
+	configPath  = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
+	collections = flag.String("collections", "", "OPTIONAL: Collections to process from the provided config file")
+	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
+	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
 )
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
@@ -111,19 +112,33 @@ func copyConfigFile(bucket, timestamp, path string) string {
 	return outPath
 }
 
-// Always compute students last, if it exists, since the number is so large
-func orderTables(configYaml config.Config) []config.Table {
-	var tableOrder []config.Table
-	for key, table := range configYaml {
-		if key == "students" {
-			continue
+// Given the command line inputs and the config file, choose the tables we want to push to s3
+func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.Table, error) {
+	var outTables []config.Table
+	selectedCollections := strings.Split(sourceInput, ",")
+	// none specified, list all
+	if len(selectedCollections) == 0 {
+		for _, table := range configYaml {
+			outTables = append(outTables, table)
 		}
-		tableOrder = append(tableOrder, table)
+	} else {
+		// else some were specified, get those in order
+		for _, sourceItem := range selectedCollections {
+			curTable := config.Table{}
+			// yes n^2, but not a big deal
+			for _, table := range configYaml {
+				if sourceItem == table.Source {
+					curTable = table
+				}
+			}
+			// if not set, yell
+			if curTable.Destination == "" {
+				return outTables, fmt.Errorf("Could not find source table: %s in config", sourceItem)
+			}
+			outTables = append(outTables, curTable)
+		}
 	}
-	if table, ok := configYaml["students"]; ok {
-		tableOrder = append(tableOrder, table)
-	}
-	return tableOrder
+	return outTables, nil
 }
 
 func main() {
@@ -152,10 +167,13 @@ func main() {
 
 	configYaml := parseConfigFile(*configPath)
 	confFileName := copyConfigFile(*bucket, timestamp, *configPath)
-	var tables []string
-	tableOrder := orderTables(configYaml)
-	for _, table := range tableOrder {
-		tables = append(tables, table.Destination)
+	sourceTables, err := getTablesFromConf(*collections, configYaml)
+	if err != nil {
+		log.Fatal(err)
+	}
+	outputTableNames := []string{}
+	for _, table := range sourceTables {
+		outputTableNames = append(outputTableNames, table.Destination)
 		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
 
 		// Gzip output into pipe so that we don't need to store locally
@@ -164,8 +182,8 @@ func main() {
 			zippedOutput := gzip.NewWriter(writer) // sorcery
 			sink := json.New(zippedOutput)
 
-			source := configuredOptimusTable(mongoClient, table)
-			count, err := exportData(source, table, sink, timestamp)
+			mongoTableSource := configuredOptimusTable(mongoClient, table)
+			count, err := exportData(mongoTableSource, table, sink, timestamp)
 			if err != nil {
 				log.Fatal("err reading table: ", err)
 			}
@@ -212,7 +230,7 @@ func main() {
 		log.Println("Submitting job to Gearman admin")
 		client := &http.Client{}
 		endpoint := os.Getenv("CLEVER_JOB_ENDPOINT") + "/s3-to-redshift"
-		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s", *bucket, strings.Join(tables, ","), confFileName)
+		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s", *bucket, strings.Join(outputTableNames, ","), confFileName)
 		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))
 		if err != nil {
 			log.Fatalf("Error creating new request: %s", err)

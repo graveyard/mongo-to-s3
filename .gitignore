@@ -4,6 +4,7 @@
 *.so
 *.swp
 *.swo
+*.out
 
 # Folders
 _obj
