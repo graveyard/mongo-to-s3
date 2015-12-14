@@ -29,7 +29,7 @@ import (
 
 var (
 	configPath  = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
-	collections = flag.String("collections", "", "OPTIONAL: Collections to process from the provided config file")
+	collections = flag.String("collections", "", "OPTIONAL: Comma-separated collections to process from the provided config file")
 	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
 	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
 )
@@ -115,15 +115,16 @@ func copyConfigFile(bucket, timestamp, path string) string {
 // Given the command line inputs and the config file, choose the tables we want to push to s3
 func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.Table, error) {
 	var outTables []config.Table
-	selectedCollections := strings.Split(sourceInput, ",")
 	// none specified, list all
-	if len(selectedCollections) == 0 {
+	if sourceInput == "" {
+		log.Println("no collections specified, emitting all in config file")
 		for _, table := range configYaml {
 			outTables = append(outTables, table)
 		}
 	} else {
 		// else some were specified, get those in order
-		for _, sourceItem := range selectedCollections {
+		log.Printf("fetching collections specified: %s", sourceInput)
+		for _, sourceItem := range strings.Split(sourceInput, ",") {
 			curTable := config.Table{}
 			// yes n^2, but not a big deal
 			for _, table := range configYaml {
