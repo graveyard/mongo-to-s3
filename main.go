@@ -231,7 +231,8 @@ func main() {
 		log.Println("Submitting job to Gearman admin")
 		client := &http.Client{}
 		endpoint := os.Getenv("CLEVER_JOB_ENDPOINT") + "/s3-to-redshift"
-		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s", *bucket, strings.Join(outputTableNames, ","), confFileName)
+		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s --date %s",
+			*bucket, strings.Join(outputTableNames, ","), confFileName, timestamp)
 		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))
 		if err != nil {
 			log.Fatalf("Error creating new request: %s", err)
