@@ -142,6 +142,32 @@ func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.T
 	return outTables, nil
 }
 
+// uploadFile handles the awkwardness around s3 regions to upload the file
+// it takes in a reader for maximum flexibility
+func uploadFile(reader io.Reader, bucket, outputName string) {
+	s3Path := fmt.Sprintf("s3://%s/%s", bucket, outputName)
+	log.Printf("uploading file: %s to path: %s", outputName, s3Path)
+	region, err := getRegionForBucket(bucket)
+	if err != nil {
+		log.Fatalf("err getting region for bucket: %s", err)
+	}
+	log.Printf("found bucket region: %s", region)
+
+	// required to do this since we can't pipe together the gzip output and pathio, unfortunately
+	// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
+	// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
+	client := s3.New(aws.NewConfig().WithRegion(region))
+	uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Body:   reader,
+		Bucket: aws.String(bucket),
+		Key:    aws.String(outputName),
+	})
+	if err != nil {
+		log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
+	}
+}
+
 func main() {
 	flag.Parse()
 	if *url == "" {
@@ -197,27 +223,7 @@ func main() {
 
 		// Upload file to bucket
 		if *bucket != "" {
-			s3Path := fmt.Sprintf("s3://%s/%s", *bucket, outputName)
-			log.Printf("uploading file: %s to path: %s", outputName, s3Path)
-			region, err := getRegionForBucket(*bucket)
-			if err != nil {
-				log.Fatalf("err getting region for bucket: %s", err)
-			}
-			log.Printf("found bucket region: %s", region)
-
-			// required to do this since we can't pipe together the gzip output and pathio, unfortunately
-			// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
-			// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
-			client := s3.New(aws.NewConfig().WithRegion(region))
-			uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
-			_, err = uploader.Upload(&s3manager.UploadInput{
-				Body:   reader,
-				Bucket: aws.String(*bucket),
-				Key:    aws.String(outputName),
-			})
-			if err != nil {
-				log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
-			}
+			uploadFile(reader, *bucket, outputName)
 		}
 	}
 
