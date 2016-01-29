@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -32,6 +34,7 @@ var (
 	collections = flag.String("collections", "", "OPTIONAL: Comma-separated collections to process from the provided config file")
 	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
 	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
+	numFiles    = flag.Int("numfiles", 1, "The number of files we wish to split the output into. Uses a manifest file if n > 1")
 )
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
@@ -69,8 +72,12 @@ func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	return mongosource.New(iter)
 }
 
-func formatFilename(timestamp, collectionName, extension string) string {
-	return fmt.Sprintf("mongo_%s_%s%s", collectionName, timestamp, extension)
+func formatFilename(timestamp, collectionName, fileIndex, extension string) string {
+	if fileIndex != "" {
+		// add underscore for readability
+		fileIndex = fmt.Sprintf("_%s", fileIndex)
+	}
+	return fmt.Sprintf("mongo_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
 }
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
@@ -96,7 +103,7 @@ func copyConfigFile(bucket, timestamp, path string) string {
 	if len(matches) < 3 {
 		log.Fatalf("issue parsing config filename from config path: %s, err: %s", path, err)
 	}
-	outPath := formatFilename(timestamp, matches[2], ".yml")
+	outPath := formatFilename(timestamp, matches[2], "", ".yml")
 	if bucket != "" {
 		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
@@ -170,6 +177,9 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 
 func main() {
 	flag.Parse()
+	if *numFiles < 1 {
+		log.Fatal("Must specify a number of output file parts >= 1")
+	}
 	if *url == "" {
 		log.Fatal("Database url of existing instance is necessary")
 	}
@@ -200,31 +210,65 @@ func main() {
 	}
 	outputTableNames := []string{}
 	for _, table := range sourceTables {
+		// add name to list for submitting to next step in pipeline
 		outputTableNames = append(outputTableNames, table.Destination)
-		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
 
-		// Gzip output into pipe so that we don't need to store locally
-		reader, writer := io.Pipe()
-		go func() {
-			zippedOutput := gzip.NewWriter(writer) // sorcery
-			sink := json.New(zippedOutput)
+		// verify total rows match sum of written
+		totalSummedRows := 0
+		totalMongoRows := 0
 
-			mongoTableSource := configuredOptimusTable(mongoClient, table)
-			count, err := exportData(mongoTableSource, table, sink, timestamp)
-			if err != nil {
-				log.Fatal("err reading table: ", err)
-			}
-			log.Println(table.Destination, " collection: ", count, " items")
+		mongoSource := configuredOptimusTable(mongoClient, table)
+		mongoCountingSource := transformer.New(mongoSource).Map(
+			func(d optimus.Row) (optimus.Row, error) {
+				totalMongoRows += 1
+				return optimus.Row(d), nil
+			})
 
-			// ALWAYS close the gzip first
-			zippedOutput.Close()
-			writer.Close()
-		}()
+		// we want to split up the file for performance reasons
+		waitGroup := &sync.WaitGroup{}
+		waitGroup.Add(*numFiles * 2)
+		for i := 0; i < *numFiles; i++ {
+			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
+			log.Printf("Outputting file number: %d to location: %s", i, outputName)
 
-		// Upload file to bucket
-		if *bucket != "" {
-			uploadFile(reader, *bucket, outputName)
+			// Gzip output into pipe so that we don't need to store locally
+			reader, writer := io.Pipe()
+			go func(waitGroup *sync.WaitGroup, index int) {
+				defer waitGroup.Done()
+
+				zippedOutput := gzip.NewWriter(writer) // sorcery
+				sink := json.New(zippedOutput)
+
+				count, err := exportData(mongoCountingSource.Table(), table, sink, timestamp)
+				if err != nil {
+					log.Fatal("err reading table: ", err)
+				}
+				log.Printf("Output destination collection: %s, count: %s, fileIndex: %d", table.Destination, count, index)
+				totalSummedRows += count
+
+				// ALWAYS close the gzip first
+				// don't defer because you can't ensure order
+				// in any case, we log.Fatal if anything goes wrong, so not defer-ing is not so bad
+				zippedOutput.Close()
+				writer.Close()
+			}(waitGroup, i)
+
+			// Upload file to bucket
+			// need to put in own goroutine to kick off because exportData can't start and the reader can't close
+			// until we hook up the reader to a sink via uploadFile
+			// can't just put without goroutine because then only one iteration of the loop gets to run
+			go func(waitGroup *sync.WaitGroup) {
+				defer waitGroup.Done()
+				uploadFile(reader, *bucket, outputName)
+			}(waitGroup)
 		}
+		waitGroup.Wait()
+		log.Printf("Output %d total rows in %d files", totalSummedRows, *numFiles)
+		if totalSummedRows != totalMongoRows {
+			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
+		}
+		// TODO: create manifest
+		//createManifest(outputFileNames)
 	}
 
 	// submit gearman job for all tables
