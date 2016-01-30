@@ -27,6 +27,7 @@ import (
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
 	"gopkg.in/Clever/optimus.v3/transformer"
+	"gopkg.in/Clever/optimus.v3/transforms"
 	"gopkg.in/mgo.v2"
 )
 
@@ -87,7 +88,7 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink, tim
 	err := transformer.New(source).Map(config.Flattener()).Fieldmap(table.FieldMap()).Map(datePopulator).Map(
 		func(d optimus.Row) (optimus.Row, error) {
 			rows = rows + 1
-			return optimus.Row(d), nil
+			return d, nil
 		}).Sink(sink)
 	return rows, err
 }
@@ -176,8 +177,11 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 	}
 }
 
+// EntryArray is a convenience function for JSON marshalling
 type EntryArray []map[string]interface{}
 
+// Manifest represents an s3 manifest file used to download to redshift
+// really only useful for JSON marshalling
 type Manifest struct {
 	Entries EntryArray `json:"entries"`
 }
@@ -251,15 +255,14 @@ func main() {
 		totalMongoRows := 0
 
 		mongoSource := configuredOptimusTable(mongoClient, table)
-		mongoCountingSource := transformer.New(mongoSource).Map(
-			func(d optimus.Row) (optimus.Row, error) {
-				totalMongoRows += 1
-				return optimus.Row(d), nil
-			})
+		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
+			totalMongoRows++
+			return nil
+		}))
 
 		// we want to split up the file for performance reasons
-		waitGroup := &sync.WaitGroup{}
-		waitGroup.Add(*numFiles * 2)
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(*numFiles)
 		for i := 0; i < *numFiles; i++ {
 			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
 			outputFilenames = append(outputFilenames, outputName)
@@ -267,34 +270,30 @@ func main() {
 
 			// Gzip output into pipe so that we don't need to store locally
 			reader, writer := io.Pipe()
-			go func(waitGroup *sync.WaitGroup, index int) {
-				defer waitGroup.Done()
-
+			go func(index int) {
 				zippedOutput := gzip.NewWriter(writer) // sorcery
 				sink := jsonsink.New(zippedOutput)
+				// ALWAYS close the gzip first
+				// (defer does LIFO)
+				defer writer.Close()
+				defer zippedOutput.Close()
 
-				count, err := exportData(mongoCountingSource.Table(), table, sink, timestamp)
+				count, err := exportData(mongoSource, table, sink, timestamp)
 				if err != nil {
 					log.Fatal("err reading table: ", err)
 				}
-				log.Printf("Output destination collection: %s, count: %s, fileIndex: %d", table.Destination, count, index)
+				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
 				totalSummedRows += count
-
-				// ALWAYS close the gzip first
-				// don't defer because you can't ensure order
-				// in any case, we log.Fatal if anything goes wrong, so not defer-ing is not so bad
-				zippedOutput.Close()
-				writer.Close()
-			}(waitGroup, i)
+			}(i)
 
 			// Upload file to bucket
 			// need to put in own goroutine to kick off because exportData can't start and the reader can't close
 			// until we hook up the reader to a sink via uploadFile
 			// can't just put without goroutine because then only one iteration of the loop gets to run
-			go func(waitGroup *sync.WaitGroup) {
+			go func() {
 				defer waitGroup.Done()
 				uploadFile(reader, *bucket, outputName)
-			}(waitGroup)
+			}()
 		}
 		waitGroup.Wait()
 		log.Printf("Output %d total rows in %d files", totalSummedRows, *numFiles)
