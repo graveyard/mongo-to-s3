@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ import (
 
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
-	json "gopkg.in/Clever/optimus.v3/sinks/json"
+	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
 	"gopkg.in/Clever/optimus.v3/transformer"
 	"gopkg.in/mgo.v2"
@@ -175,6 +176,37 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 	}
 }
 
+type EntryArray []map[string]interface{}
+
+type Manifest struct {
+	Entries EntryArray `json:"entries"`
+}
+
+// createManifest creates a manifest file given the list of files to include into the file
+// it returns a reader for convenience
+// looks something like:
+//  { "entries": [
+//    {"url": "s3://clever-analytics/mongo_students_1_2016-01-27T21:00:00Z.json.gz", "mandatory": true},
+//    {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
+//  ] }
+func createManifest(dataFilenames []string) (io.Reader, error) {
+	var entryArray EntryArray
+	for _, fn := range dataFilenames {
+		entryArray = append(entryArray, map[string]interface{}{
+			"url":       fn,
+			"mandatory": true,
+		})
+	}
+
+	jsonVal, err := json.Marshal(Manifest{entryArray})
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Manifest file contents: %s", string(jsonVal))
+	return bytes.NewReader(jsonVal), nil
+
+}
+
 func main() {
 	flag.Parse()
 	if *numFiles < 1 {
@@ -212,6 +244,7 @@ func main() {
 	for _, table := range sourceTables {
 		// add name to list for submitting to next step in pipeline
 		outputTableNames = append(outputTableNames, table.Destination)
+		outputFilenames := []string{}
 
 		// verify total rows match sum of written
 		totalSummedRows := 0
@@ -229,6 +262,7 @@ func main() {
 		waitGroup.Add(*numFiles * 2)
 		for i := 0; i < *numFiles; i++ {
 			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
+			outputFilenames = append(outputFilenames, outputName)
 			log.Printf("Outputting file number: %d to location: %s", i, outputName)
 
 			// Gzip output into pipe so that we don't need to store locally
@@ -237,7 +271,7 @@ func main() {
 				defer waitGroup.Done()
 
 				zippedOutput := gzip.NewWriter(writer) // sorcery
-				sink := json.New(zippedOutput)
+				sink := jsonsink.New(zippedOutput)
 
 				count, err := exportData(mongoCountingSource.Table(), table, sink, timestamp)
 				if err != nil {
@@ -267,8 +301,13 @@ func main() {
 		if totalSummedRows != totalMongoRows {
 			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
 		}
-		// TODO: create manifest
-		//createManifest(outputFileNames)
+		// we always upload a manifest including the files we just created
+		manifestFilename := formatFilename(timestamp, table.Destination, "", ".manifest")
+		manifestReader, err := createManifest(outputFilenames)
+		if err != nil {
+			log.Fatalf("Error creating manifest: %s", err)
+		}
+		uploadFile(manifestReader, *bucket, manifestFilename)
 	}
 
 	// submit gearman job for all tables

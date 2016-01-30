@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"reflect"
 	"testing"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -30,4 +33,23 @@ func TestTableRetrieval(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(tables), 1)
 	assert.Equal(t, tables[0].Destination, "Hawaii")
+}
+
+func TestCreateManifest(t *testing.T) {
+	reader, err := createManifest([]string{"foo", "bar"})
+	assert.NoError(t, err)
+	expectedManifest := &Manifest{
+		EntryArray{
+			map[string]interface{}{"url": "foo", "mandatory": true},
+			map[string]interface{}{"url": "bar", "mandatory": true},
+		},
+	}
+
+	bytes, err := ioutil.ReadAll(reader)
+	assert.NoError(t, err)
+	manifest := &Manifest{}
+	err = json.Unmarshal(bytes, manifest)
+	assert.NoError(t, err)
+	// check that the manifest entries match
+	assert.Equal(t, true, reflect.DeepEqual(expectedManifest.Entries, manifest.Entries), "entry maps are not equal!")
 }
