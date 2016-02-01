@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -251,8 +252,8 @@ func main() {
 		outputFilenames := []string{}
 
 		// verify total rows match sum of written
-		totalSummedRows := 0
-		totalMongoRows := 0
+		var totalSummedRows int64
+		var totalMongoRows int64
 
 		mongoSource := configuredOptimusTable(mongoClient, table)
 		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
@@ -283,7 +284,8 @@ func main() {
 					log.Fatal("err reading table: ", err)
 				}
 				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
-				totalSummedRows += count
+				// need to do this atomically to avoid concurrency issues
+				atomic.AddInt64(&totalSummedRows, int64(count))
 			}(i)
 
 			// Upload file to bucket
