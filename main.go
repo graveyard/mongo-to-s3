@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,7 +12,10 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -21,9 +25,10 @@ import (
 
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
-	json "gopkg.in/Clever/optimus.v3/sinks/json"
+	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
 	"gopkg.in/Clever/optimus.v3/transformer"
+	"gopkg.in/Clever/optimus.v3/transforms"
 	"gopkg.in/mgo.v2"
 )
 
@@ -32,6 +37,7 @@ var (
 	collections = flag.String("collections", "", "OPTIONAL: Comma-separated collections to process from the provided config file")
 	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
 	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
+	numFiles    = flag.Int("numfiles", 1, "The number of files we wish to split the output into. Uses a manifest file if n > 1")
 )
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
@@ -69,8 +75,12 @@ func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	return mongosource.New(iter)
 }
 
-func formatFilename(timestamp, collectionName, extension string) string {
-	return fmt.Sprintf("mongo_%s_%s%s", collectionName, timestamp, extension)
+func formatFilename(timestamp, collectionName, fileIndex, extension string) string {
+	if fileIndex != "" {
+		// add underscore for readability
+		fileIndex = fmt.Sprintf("_%s", fileIndex)
+	}
+	return fmt.Sprintf("mongo_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
 }
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
@@ -79,7 +89,7 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink, tim
 	err := transformer.New(source).Map(config.Flattener()).Fieldmap(table.FieldMap()).Map(datePopulator).Map(
 		func(d optimus.Row) (optimus.Row, error) {
 			rows = rows + 1
-			return optimus.Row(d), nil
+			return d, nil
 		}).Sink(sink)
 	return rows, err
 }
@@ -96,7 +106,7 @@ func copyConfigFile(bucket, timestamp, path string) string {
 	if len(matches) < 3 {
 		log.Fatalf("issue parsing config filename from config path: %s, err: %s", path, err)
 	}
-	outPath := formatFilename(timestamp, matches[2], ".yml")
+	outPath := formatFilename(timestamp, matches[2], "", ".yml")
 	if bucket != "" {
 		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
@@ -142,8 +152,70 @@ func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.T
 	return outTables, nil
 }
 
+// uploadFile handles the awkwardness around s3 regions to upload the file
+// it takes in a reader for maximum flexibility
+func uploadFile(reader io.Reader, bucket, outputName string) {
+	s3Path := fmt.Sprintf("s3://%s/%s", bucket, outputName)
+	log.Printf("uploading file: %s to path: %s", outputName, s3Path)
+	region, err := getRegionForBucket(bucket)
+	if err != nil {
+		log.Fatalf("err getting region for bucket: %s", err)
+	}
+	log.Printf("found bucket region: %s", region)
+
+	// required to do this since we can't pipe together the gzip output and pathio, unfortunately
+	// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
+	// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
+	client := s3.New(aws.NewConfig().WithRegion(region))
+	uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Body:   reader,
+		Bucket: aws.String(bucket),
+		Key:    aws.String(outputName),
+	})
+	if err != nil {
+		log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
+	}
+}
+
+// EntryArray is a convenience function for JSON marshalling
+type EntryArray []map[string]interface{}
+
+// Manifest represents an s3 manifest file used to download to redshift
+// really only useful for JSON marshalling
+type Manifest struct {
+	Entries EntryArray `json:"entries"`
+}
+
+// createManifest creates a manifest file given the list of files to include into the file
+// it returns a reader for convenience
+// looks something like:
+//  { "entries": [
+//    {"url": "s3://clever-analytics/mongo_students_1_2016-01-27T21:00:00Z.json.gz", "mandatory": true},
+//    {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
+//  ] }
+func createManifest(dataFilenames []string) (io.Reader, error) {
+	var entryArray EntryArray
+	for _, fn := range dataFilenames {
+		entryArray = append(entryArray, map[string]interface{}{
+			"url":       fn,
+			"mandatory": true,
+		})
+	}
+
+	jsonVal, err := json.Marshal(Manifest{Entries: entryArray})
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Manifest file contents: %s", string(jsonVal))
+	return bytes.NewReader(jsonVal), nil
+}
+
 func main() {
 	flag.Parse()
+	if *numFiles < 1 {
+		log.Fatal("Must specify a number of output file parts >= 1")
+	}
 	if *url == "" {
 		log.Fatal("Database url of existing instance is necessary")
 	}
@@ -174,51 +246,68 @@ func main() {
 	}
 	outputTableNames := []string{}
 	for _, table := range sourceTables {
+		// add name to list for submitting to next step in pipeline
 		outputTableNames = append(outputTableNames, table.Destination)
-		outputName := formatFilename(timestamp, table.Destination, ".json.gz")
+		outputFilenames := []string{}
 
-		// Gzip output into pipe so that we don't need to store locally
-		reader, writer := io.Pipe()
-		go func() {
-			zippedOutput := gzip.NewWriter(writer) // sorcery
-			sink := json.New(zippedOutput)
+		// verify total rows match sum of written
+		var totalSummedRows int64
+		var totalMongoRows int64
 
-			mongoTableSource := configuredOptimusTable(mongoClient, table)
-			count, err := exportData(mongoTableSource, table, sink, timestamp)
-			if err != nil {
-				log.Fatal("err reading table: ", err)
-			}
-			log.Println(table.Destination, " collection: ", count, " items")
+		mongoSource := configuredOptimusTable(mongoClient, table)
+		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
+			totalMongoRows++
+			return nil
+		}))
 
-			// ALWAYS close the gzip first
-			zippedOutput.Close()
-			writer.Close()
-		}()
+		// we want to split up the file for performance reasons
+		var waitGroup sync.WaitGroup
+		waitGroup.Add(*numFiles)
+		for i := 0; i < *numFiles; i++ {
+			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
+			outputFilenames = append(outputFilenames, outputName)
+			log.Printf("Outputting file number: %d to location: %s", i, outputName)
 
-		// Upload file to bucket
-		if *bucket != "" {
-			s3Path := fmt.Sprintf("s3://%s/%s", *bucket, outputName)
-			log.Printf("uploading file: %s to path: %s", outputName, s3Path)
-			region, err := getRegionForBucket(*bucket)
-			if err != nil {
-				log.Fatalf("err getting region for bucket: %s", err)
-			}
-			log.Printf("found bucket region: %s", region)
+			// Gzip output into pipe so that we don't need to store locally
+			reader, writer := io.Pipe()
+			go func(index int) {
+				zippedOutput := gzip.NewWriter(writer) // sorcery
+				sink := jsonsink.New(zippedOutput)
+				// ALWAYS close the gzip first
+				// (defer does LIFO)
+				defer writer.Close()
+				defer zippedOutput.Close()
 
-			// required to do this since we can't pipe together the gzip output and pathio, unfortunately
-			// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
-			// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
-			client := s3.New(aws.NewConfig().WithRegion(region))
-			uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
-			_, err = uploader.Upload(&s3manager.UploadInput{
-				Body:   reader,
-				Bucket: aws.String(*bucket),
-				Key:    aws.String(outputName),
-			})
-			if err != nil {
-				log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
-			}
+				count, err := exportData(mongoSource, table, sink, timestamp)
+				if err != nil {
+					log.Fatal("err reading table: ", err)
+				}
+				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
+				// need to do this atomically to avoid concurrency issues
+				atomic.AddInt64(&totalSummedRows, int64(count))
+			}(i)
+
+			// Upload file to bucket
+			// need to put in own goroutine to kick off because exportData can't start and the reader can't close
+			// until we hook up the reader to a sink via uploadFile
+			// can't just put without goroutine because then only one iteration of the loop gets to run
+			go func() {
+				defer waitGroup.Done()
+				uploadFile(reader, *bucket, outputName)
+			}()
 		}
+		waitGroup.Wait()
+		log.Printf("Output %d total rows in %d files", totalSummedRows, *numFiles)
+		if totalSummedRows != totalMongoRows {
+			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
+		}
+		// we always upload a manifest including the files we just created
+		manifestFilename := formatFilename(timestamp, table.Destination, "", ".manifest")
+		manifestReader, err := createManifest(outputFilenames)
+		if err != nil {
+			log.Fatalf("Error creating manifest: %s", err)
+		}
+		uploadFile(manifestReader, *bucket, manifestFilename)
 	}
 
 	// submit gearman job for all tables
