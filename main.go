@@ -203,13 +203,12 @@ func createManifest(dataFilenames []string) (io.Reader, error) {
 		})
 	}
 
-	jsonVal, err := json.Marshal(Manifest{entryArray})
+	jsonVal, err := json.Marshal(Manifest{Entries: entryArray})
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Manifest file contents: %s", string(jsonVal))
 	return bytes.NewReader(jsonVal), nil
-
 }
 
 func main() {
