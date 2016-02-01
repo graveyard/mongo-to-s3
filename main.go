@@ -257,6 +257,9 @@ func main() {
 		mongoSource := configuredOptimusTable(mongoClient, table)
 		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
 			totalMongoRows++
+			if totalMongoRows%1000000 == 0 {
+				log.Printf("Processing mongo row: %d", totalMongoRows)
+			}
 			return nil
 		}))
 
