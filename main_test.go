@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"reflect"
 	"testing"
 
 	"github.com/Clever/mongo-to-s3/config"
@@ -51,5 +50,5 @@ func TestCreateManifest(t *testing.T) {
 	err = json.Unmarshal(bytes, manifest)
 	assert.NoError(t, err)
 	// check that the manifest entries match
-	assert.Equal(t, true, reflect.DeepEqual(expectedManifest.Entries, manifest.Entries), "entry maps are not equal!")
+	assert.Equal(t, expectedManifest.Entries, manifest.Entries)
 }
