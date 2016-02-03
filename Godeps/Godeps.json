@@ -1,87 +1,84 @@
 {
 	"ImportPath": "github.com/Clever/mongo-to-s3",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.5.1",
 	"Packages": [
-		"./..."
+		"github.com/Clever/mongo-to-s3",
+		"github.com/Clever/mongo-to-s3/aws",
+		"github.com/Clever/mongo-to-s3/fab",
+		"github.com/Clever/mongo-to-s3/config"
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/Clever/pathio",
-			"Comment": "v2.0.0",
-			"Rev": "95b3c747cf6cebec9e98d742f31131fe7c5778cd"
+			"Comment": "v2.0.0-21-g2e00129",
+			"Rev": "2e00129fc0ac898fc642df20d2fa75000a26cca1"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/aws",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/endpoints",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/endpoints",
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/ec2query",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/protocol",
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/query",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/signer/v4",
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/rest",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
-		},
-		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/restxml",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
-		},
-		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/protocol/xml/xmlutil",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
-		},
-		{
-			"ImportPath": "github.com/aws/aws-sdk-go/internal/signer/v4",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"ImportPath": "github.com/aws/aws-sdk-go/private/waiter",
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/ec2",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
 		},
 		{
 			"ImportPath": "github.com/aws/aws-sdk-go/service/s3",
-			"Comment": "v0.9.15",
-			"Rev": "7ab6754ddaaa7972ac1c896ddd7f796cc726e79d"
+			"Comment": "v1.1.0-15-ga170e9c",
+			"Rev": "a170e9cb76475a0da7c0326a13cc2b39e9244b3b"
+		},
+		{
+			"ImportPath": "github.com/davecgh/go-spew/spew",
+			"Rev": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d"
 		},
 		{
 			"ImportPath": "github.com/facebookgo/errgroup",
-			"Rev": "91255f2c339e8e14d9960edd25f767f99cf05e5e"
+			"Rev": "46ea9736c913dd08039fecd085b9622a499aa0ad"
+		},
+		{
+			"ImportPath": "github.com/go-ini/ini",
+			"Comment": "v1.8.6",
+			"Rev": "afbd495e5aaea13597b5e14fe514ddeaa4d76fc3"
+		},
+		{
+			"ImportPath": "github.com/jmespath/go-jmespath",
+			"Comment": "0.2.2-2-gc01cf91",
+			"Rev": "c01cf91b011868172fdcd9f41838e80c9d716264"
+		},
+		{
+			"ImportPath": "github.com/pmezard/go-difflib/difflib",
+			"Rev": "792786c7400a136282c1664665ae0a8db921c6c2"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
-			"Comment": "v1.0-36-gacfa84d",
-			"Rev": "acfa84d4543a981cf308682732f84872d4296ac5"
-		},
-		{
-			"ImportPath": "github.com/vaughan0/go-ini",
-			"Rev": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1"
-		},
-		{
-			"ImportPath": "gopkg.in/Clever/gearman.v2",
-			"Comment": "v2.0.2",
-			"Rev": "d2560ca62280345c831fdce79fd9fa13e537be59"
+			"Comment": "v1.1.3-2-g9f9027f",
+			"Rev": "9f9027faeb0dad515336ed2f28317f9f8f527ab4"
 		},
 		{
 			"ImportPath": "gopkg.in/Clever/optimus.v3",
-			"Comment": "v3.6.3",
-			"Rev": "3878568dd153ad97db26ed7cc14a74397ecc6098"
+			"Comment": "v3.6.2",
+			"Rev": "28173851fb524967c8a6013379f69b7a0a01b361"
 		},
 		{
 			"ImportPath": "gopkg.in/fatih/set.v0",
@@ -90,12 +87,12 @@
 		},
 		{
 			"ImportPath": "gopkg.in/mgo.v2",
-			"Comment": "r2015.06.03-5-g22287ba",
-			"Rev": "22287bab4379e1fbf6002fb4eb769888f3fb224c"
+			"Comment": "r2015.10.05-1-g4d04138",
+			"Rev": "4d04138ffef2791c479c0c8bbffc30b34081b8d9"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "53feefa2559fb8dfa8d81baad31be332c97d6c77"
+			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
 		}
 	]
 }

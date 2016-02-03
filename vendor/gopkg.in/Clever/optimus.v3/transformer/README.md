@@ -56,13 +56,6 @@ func (t *Transformer) Fieldmap(mappings map[string][]string) *Transformer
 ```
 Fieldmap Applies a Fieldmap transform.
 
-#### func (*Transformer) GroupBy
-
-```go
-func (t *Transformer) GroupBy(identifier transforms.RowIdentifier) *Transformer
-```
-GroupBy Applies a GroupBy transform.
-
 #### func (*Transformer) Map
 
 ```go

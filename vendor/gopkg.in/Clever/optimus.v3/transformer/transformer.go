@@ -83,11 +83,6 @@ func (t *Transformer) StableSort(less func(i, j optimus.Row) (bool, error)) *Tra
 	return t.Apply(transforms.StableSort(less))
 }
 
-// GroupBy Applies a GroupBy transform.
-func (t *Transformer) GroupBy(identifier transforms.RowIdentifier) *Transformer {
-	return t.Apply(transforms.GroupBy(identifier))
-}
-
 // Sink consumes all the Rows.
 func (t *Transformer) Sink(sink optimus.Sink) error {
 	return sink(t.table)
