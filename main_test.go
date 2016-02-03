@@ -35,12 +35,12 @@ func TestTableRetrieval(t *testing.T) {
 }
 
 func TestCreateManifest(t *testing.T) {
-	reader, err := createManifest([]string{"foo", "bar"})
+	reader, err := createManifest("bucket", []string{"foo", "bar"})
 	assert.NoError(t, err)
 	expectedManifest := &Manifest{
 		EntryArray{
-			map[string]interface{}{"url": "foo", "mandatory": true},
-			map[string]interface{}{"url": "bar", "mandatory": true},
+			map[string]interface{}{"url": "s3://bucket/foo", "mandatory": true},
+			map[string]interface{}{"url": "s3://bucket/bar", "mandatory": true},
 		},
 	}
 
