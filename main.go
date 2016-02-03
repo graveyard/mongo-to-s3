@@ -194,11 +194,11 @@ type Manifest struct {
 //    {"url": "s3://clever-analytics/mongo_students_1_2016-01-27T21:00:00Z.json.gz", "mandatory": true},
 //    {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
 //  ] }
-func createManifest(dataFilenames []string) (io.Reader, error) {
+func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 	var entryArray EntryArray
 	for _, fn := range dataFilenames {
 		entryArray = append(entryArray, map[string]interface{}{
-			"url":       fn,
+			"url":       fmt.Sprintf("s3://%s/%s", bucket, fn),
 			"mandatory": true,
 		})
 	}
@@ -306,7 +306,7 @@ func main() {
 		}
 		// we always upload a manifest including the files we just created
 		manifestFilename := formatFilename(timestamp, table.Destination, "", ".manifest")
-		manifestReader, err := createManifest(outputFilenames)
+		manifestReader, err := createManifest(*bucket, outputFilenames)
 		if err != nil {
 			log.Fatalf("Error creating manifest: %s", err)
 		}
