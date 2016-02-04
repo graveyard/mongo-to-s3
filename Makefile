@@ -4,6 +4,7 @@ PKG := github.com/Clever/mongo-to-s3
 SUBPKGS := $(addprefix $(PKG)/, aws fab config)
 PKGS := $(PKG) $(SUBPKGS)
 GOLINT := $(GOPATH)/bin/golint
+GODEP := $(GOPATH)/bin/godep
 
 GOVERSION := $(shell go version | grep 1.5)
 ifeq "$(GOVERSION)" ""
@@ -36,3 +37,7 @@ clean:
 	rm -f mongo-to-s3
 	rm -f c.out
 	rm -f config/c.out
+
+vendor: $(GODEP)
+	$(GODEP) save $(PKGS)
+	find vendor/ -path '*/vendor' -type d | xargs -IX rm -r X # remove any nested vendor directories

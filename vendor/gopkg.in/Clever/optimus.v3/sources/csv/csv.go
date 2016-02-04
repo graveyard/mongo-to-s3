@@ -2,7 +2,6 @@ package csv
 
 import (
 	"encoding/csv"
-	"fmt"
 	"io"
 
 	"gopkg.in/Clever/optimus.v3"
@@ -20,10 +19,6 @@ func (t *table) start(reader *csv.Reader) {
 
 	headers, err := reader.Read()
 	if err != nil {
-		if perr, ok := err.(*csv.ParseError); ok {
-			// Modifies the underlying err
-			perr.Err = fmt.Errorf("%s. %s", perr.Err, "This can happen when the CSV is malformed, or when the wrong delimiter is used")
-		}
 		t.handleErr(err)
 		return
 	}
