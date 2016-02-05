@@ -3,7 +3,6 @@ package request
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
@@ -13,21 +12,13 @@ import (
 type Retryer interface {
 	RetryRules(*Request) time.Duration
 	ShouldRetry(*Request) bool
-	MaxRetries() int
-}
-
-// WithRetryer sets a config Retryer value to the given Config returning it
-// for chaining.
-func WithRetryer(cfg *aws.Config, retryer Retryer) *aws.Config {
-	cfg.Retryer = retryer
-	return cfg
+	MaxRetries() uint
 }
 
 // retryableCodes is a collection of service response codes which are retry-able
 // without any further action.
 var retryableCodes = map[string]struct{}{
 	"RequestError":                           {},
-	"RequestTimeout":                         {},
 	"ProvisionedThroughputExceededException": {},
 	"Throttling":                             {},
 	"ThrottlingException":                    {},

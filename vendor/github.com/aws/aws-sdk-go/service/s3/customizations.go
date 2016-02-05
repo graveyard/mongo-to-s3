@@ -1,27 +1,27 @@
 package s3
 
 import (
-	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws/service"
 )
 
 func init() {
-	initClient = func(c *client.Client) {
+	initService = func(s *service.Service) {
 		// Support building custom host-style bucket endpoints
-		c.Handlers.Build.PushFront(updateHostWithBucket)
+		s.Handlers.Build.PushFront(updateHostWithBucket)
 
 		// Require SSL when using SSE keys
-		c.Handlers.Validate.PushBack(validateSSERequiresSSL)
-		c.Handlers.Build.PushBack(computeSSEKeys)
+		s.Handlers.Validate.PushBack(validateSSERequiresSSL)
+		s.Handlers.Build.PushBack(computeSSEKeys)
 
 		// S3 uses custom error unmarshaling logic
-		c.Handlers.UnmarshalError.Clear()
-		c.Handlers.UnmarshalError.PushBack(unmarshalError)
+		s.Handlers.UnmarshalError.Clear()
+		s.Handlers.UnmarshalError.PushBack(unmarshalError)
 	}
 
 	initRequest = func(r *request.Request) {
 		switch r.Operation.Name {
-		case opPutBucketCors, opPutBucketLifecycle, opPutBucketPolicy, opPutBucketTagging, opDeleteObjects, opPutBucketLifecycleConfiguration:
+		case opPutBucketCors, opPutBucketLifecycle, opPutBucketPolicy, opPutBucketTagging, opDeleteObjects:
 			// These S3 operations require Content-MD5 to be set
 			r.Handlers.Build.PushBack(contentMD5)
 		case opGetBucketLocation:
