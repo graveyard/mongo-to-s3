@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"runtime"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -21,10 +20,10 @@ type lener interface {
 	Len() int
 }
 
-// BuildContentLengthHandler builds the content length of a request based on the body,
+// BuildContentLength builds the content length of a request based on the body,
 // or will use the HTTPRequest.Header's "Content-Length" if defined. If unable
 // to determine request body length and no "Content-Length" was specified it will panic.
-var BuildContentLengthHandler = request.NamedHandler{Name: "core.BuildContentLengthHandler", Fn: func(r *request.Request) {
+var BuildContentLengthHandler = request.NamedHandler{"core.BuildContentLengthHandler", func(r *request.Request) {
 	if slength := r.HTTPRequest.Header.Get("Content-Length"); slength != "" {
 		length, _ := strconv.ParseInt(slength, 10, 64)
 		r.HTTPRequest.ContentLength = length
@@ -50,19 +49,17 @@ var BuildContentLengthHandler = request.NamedHandler{Name: "core.BuildContentLen
 	r.HTTPRequest.Header.Set("Content-Length", fmt.Sprintf("%d", length))
 }}
 
-// SDKVersionUserAgentHandler is a request handler for adding the SDK Version to the user agent.
-var SDKVersionUserAgentHandler = request.NamedHandler{
-	Name: "core.SDKVersionUserAgentHandler",
-	Fn: request.MakeAddToUserAgentHandler(aws.SDKName, aws.SDKVersion,
-		runtime.Version(), runtime.GOOS, runtime.GOARCH),
-}
+// UserAgentHandler is a request handler for injecting User agent into requests.
+var UserAgentHandler = request.NamedHandler{"core.UserAgentHandler", func(r *request.Request) {
+	r.HTTPRequest.Header.Set("User-Agent", aws.SDKName+"/"+aws.SDKVersion)
+}}
 
 var reStatusCode = regexp.MustCompile(`^(\d{3})`)
 
 // SendHandler is a request handler to send service request using HTTP client.
-var SendHandler = request.NamedHandler{Name: "core.SendHandler", Fn: func(r *request.Request) {
+var SendHandler = request.NamedHandler{"core.SendHandler", func(r *request.Request) {
 	var err error
-	r.HTTPResponse, err = r.Config.HTTPClient.Do(r.HTTPRequest)
+	r.HTTPResponse, err = r.Service.Config.HTTPClient.Do(r.HTTPRequest)
 	if err != nil {
 		// Capture the case where url.Error is returned for error processing
 		// response. e.g. 301 without location header comes back as string
@@ -95,7 +92,7 @@ var SendHandler = request.NamedHandler{Name: "core.SendHandler", Fn: func(r *req
 }}
 
 // ValidateResponseHandler is a request handler to validate service response.
-var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseHandler", Fn: func(r *request.Request) {
+var ValidateResponseHandler = request.NamedHandler{"core.ValidateResponseHandler", func(r *request.Request) {
 	if r.HTTPResponse.StatusCode == 0 || r.HTTPResponse.StatusCode >= 300 {
 		// this may be replaced by an UnmarshalError handler
 		r.Error = awserr.New("UnknownError", "unknown error", nil)
@@ -104,7 +101,7 @@ var ValidateResponseHandler = request.NamedHandler{Name: "core.ValidateResponseH
 
 // AfterRetryHandler performs final checks to determine if the request should
 // be retried and how long to delay.
-var AfterRetryHandler = request.NamedHandler{Name: "core.AfterRetryHandler", Fn: func(r *request.Request) {
+var AfterRetryHandler = request.NamedHandler{"core.AfterRetryHandler", func(r *request.Request) {
 	// If one of the other handlers already set the retry state
 	// we don't want to override it based on the service's state
 	if r.Retryable == nil {
@@ -113,13 +110,13 @@ var AfterRetryHandler = request.NamedHandler{Name: "core.AfterRetryHandler", Fn:
 
 	if r.WillRetry() {
 		r.RetryDelay = r.RetryRules(r)
-		r.Config.SleepDelay(r.RetryDelay)
+		r.Service.Config.SleepDelay(r.RetryDelay)
 
 		// when the expired token exception occurs the credentials
 		// need to be expired locally so that the next request to
 		// get credentials will trigger a credentials refresh.
 		if r.IsErrorExpired() {
-			r.Config.Credentials.Expire()
+			r.Service.Config.Credentials.Expire()
 		}
 
 		r.RetryCount++
@@ -130,10 +127,10 @@ var AfterRetryHandler = request.NamedHandler{Name: "core.AfterRetryHandler", Fn:
 // ValidateEndpointHandler is a request handler to validate a request had the
 // appropriate Region and Endpoint set. Will set r.Error if the endpoint or
 // region is not valid.
-var ValidateEndpointHandler = request.NamedHandler{Name: "core.ValidateEndpointHandler", Fn: func(r *request.Request) {
-	if r.ClientInfo.SigningRegion == "" && aws.StringValue(r.Config.Region) == "" {
+var ValidateEndpointHandler = request.NamedHandler{"core.ValidateEndpointHandler", func(r *request.Request) {
+	if r.Service.SigningRegion == "" && aws.StringValue(r.Service.Config.Region) == "" {
 		r.Error = aws.ErrMissingRegion
-	} else if r.ClientInfo.Endpoint == "" {
+	} else if r.Service.Endpoint == "" {
 		r.Error = aws.ErrMissingEndpoint
 	}
 }}
