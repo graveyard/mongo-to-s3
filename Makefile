@@ -1,3 +1,6 @@
+include golang.mk
+.DEFAULT_GOAL := test # override default goal set in library makefile
+
 .PHONY: all build clean test $(PKGS)
 SHELL := /bin/bash
 PKG := github.com/Clever/mongo-to-s3
@@ -5,11 +8,7 @@ SUBPKGS := $(addprefix $(PKG)/, aws fab config)
 PKGS := $(PKG) $(SUBPKGS)
 GOLINT := $(GOPATH)/bin/golint
 
-GOVERSION := $(shell go version | grep 1.5)
-ifeq "$(GOVERSION)" ""
-		$(error must be running Go version 1.5)
-endif
-export GO15VENDOREXPERIMENT=1
+$(eval $(call golang-version-check,1.5))
 
 test: $(PKGS)
 
@@ -21,18 +20,13 @@ $(GOLINT):
 build: clean
 	GO15VENDOREXPERIMENT=1 go build -o "mongo-to-s3" $(PKG)
 
-$(PKGS): $(GOLINT)
-	@echo ""
-	@echo "FORMATTING $@..."
-	gofmt -w=true $(GOPATH)/src/$@/*.go
-	@echo ""
-	@echo "LINTING $@..."
-	$(GOLINT) $(GOPATH)/src/$@/*.go
-	@echo ""
-	@echo "TESTING COVERAGE $@..."
-	go test -cover -coverprofile=$(GOPATH)/src/$@/c.out $@ -test.v
-
 clean:
 	rm -f mongo-to-s3
 	rm -f c.out
 	rm -f config/c.out
+
+$(PKGS): golang-test-all-deps
+	$(call golang-test-all,$@)
+
+vendor: golang-godep-vendor-deps
+	$(call golang-godep-vendor,$(PKGS))
