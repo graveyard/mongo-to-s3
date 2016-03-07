@@ -24,7 +24,7 @@ publish:
     when:
       branch: master
 services:
-  - mongodb:2.4
+  - clever/mongo:3.0
 script:
   - sudo apt-get update
   - make all
