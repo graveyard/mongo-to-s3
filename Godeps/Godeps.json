@@ -74,11 +74,6 @@
 			"Rev": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1"
 		},
 		{
-			"ImportPath": "gopkg.in/Clever/gearman.v2",
-			"Comment": "v2.0.2",
-			"Rev": "d2560ca62280345c831fdce79fd9fa13e537be59"
-		},
-		{
 			"ImportPath": "gopkg.in/Clever/optimus.v3",
 			"Comment": "v3.6.3",
 			"Rev": "3878568dd153ad97db26ed7cc14a74397ecc6098"
