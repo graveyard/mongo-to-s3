@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
+	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
@@ -38,7 +39,38 @@ var (
 	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
 	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
 	numFiles    = flag.Int("numfiles", 1, "The number of files we wish to split the output into. Uses a manifest file if n > 1")
+
+	gearmanAdminURL string
 )
+
+// getEnv looks up an environment variable given and exits if it does not exist.
+func getEnv(envVar string) string {
+	val := os.Getenv(envVar)
+	if val == "" {
+		log.Fatalf("Must specify env variable %s", envVar)
+	}
+	return val
+}
+
+func generateServiceEndpoint(user, pass, path string) string {
+	hostPort, err := discovery.HostPort("gearman-admin", "http")
+	if err != nil {
+		log.Fatal(err)
+	}
+	proto, err := discovery.Proto("gearman-admin", "http")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return fmt.Sprintf("%s://%s:%s@%s%s", proto, user, pass, hostPort, path)
+}
+
+func init() {
+	gearmanAdminUser := getEnv("GEARMAN_ADMIN_USER")
+	gearmanAdminPass := getEnv("GEARMAN_ADMIN_PASS")
+	gearmanAdminPath := getEnv("GEARMAN_ADMIN_PATH")
+	gearmanAdminURL = generateServiceEndpoint(gearmanAdminUser, gearmanAdminPass, gearmanAdminPath)
+}
 
 // Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
 func mongoConnection(url string) *mgo.Session {
@@ -317,12 +349,12 @@ func main() {
 	// doing this all at the end to ensure that the data in redshift is updated
 	// at the same time for different collections
 
-	if len(os.Getenv("CLEVER_JOB_ENDPOINT")) == 0 {
+	if len(gearmanAdminURL) == 0 {
 		log.Println("Not posting s3-to-redshift job")
 	} else {
 		log.Println("Submitting job to Gearman admin")
 		client := &http.Client{}
-		endpoint := os.Getenv("CLEVER_JOB_ENDPOINT") + "/s3-to-redshift"
+		endpoint := gearmanAdminURL + "/s3-to-redshift"
 		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s --date %s",
 			*bucket, strings.Join(outputTableNames, ","), confFileName, timestamp)
 		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))

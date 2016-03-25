@@ -10,6 +10,12 @@ GOLINT := $(GOPATH)/bin/golint
 
 $(eval $(call golang-version-check,1.5))
 
+export SERVICE_GEARMAN_ADMIN_HTTP_PROTO?=x
+export SERVICE_GEARMAN_ADMIN_HTTP_PORT?=x
+export SERVICE_GEARMAN_ADMIN_HTTP_HOST?=x
+export GEARMAN_ADMIN_USER?=x
+export GEARMAN_ADMIN_PASS?=x
+export GEARMAN_ADMIN_PATH?=x
 test: $(PKGS)
 
 all: build test
