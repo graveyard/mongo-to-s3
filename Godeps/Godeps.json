@@ -1,10 +1,18 @@
 {
 	"ImportPath": "github.com/Clever/mongo-to-s3",
-	"GoVersion": "go1.5",
+	"GoVersion": "go1.5.2",
 	"Packages": [
-		"./..."
+		"github.com/Clever/mongo-to-s3",
+		"github.com/Clever/mongo-to-s3/aws",
+		"github.com/Clever/mongo-to-s3/fab",
+		"github.com/Clever/mongo-to-s3/config"
 	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/Clever/discovery-go",
+			"Comment": "v1.4.0-1-g900bb89",
+			"Rev": "900bb89e81cec862aa789016a1c9f32aca6cc639"
+		},
 		{
 			"ImportPath": "github.com/Clever/pathio",
 			"Comment": "v2.0.0",
@@ -74,9 +82,9 @@
 			"Rev": "a98ad7ee00ec53921f08832bc06ecf7fd600e6a1"
 		},
 		{
-			"ImportPath": "gopkg.in/Clever/gearman.v2",
-			"Comment": "v2.0.2",
-			"Rev": "d2560ca62280345c831fdce79fd9fa13e537be59"
+			"ImportPath": "gopkg.in/Clever/kayvee-go.v3",
+			"Comment": "v3.0.0",
+			"Rev": "d49feee080e8e32e01a5f415cf1f9dc264dfb043"
 		},
 		{
 			"ImportPath": "gopkg.in/Clever/optimus.v3",

@@ -10,6 +10,8 @@ import (
 )
 
 func TestTableRetrieval(t *testing.T) {
+	gearmanAdminURL = "" // Hacky way to avoid posting a job
+
 	table1 := config.Table{Destination: "schools_dest", Source: "schools_source"}
 	table2 := config.Table{Destination: "teachers_dest", Source: "teachers_source"}
 	table3 := config.Table{Destination: "students_dest", Source: "students_source"}
@@ -35,6 +37,8 @@ func TestTableRetrieval(t *testing.T) {
 }
 
 func TestCreateManifest(t *testing.T) {
+	gearmanAdminURL = "" // Hacky way to avoid posting a job
+
 	reader, err := createManifest("bucket", []string{"foo", "bar"})
 	assert.NoError(t, err)
 	expectedManifest := &Manifest{
