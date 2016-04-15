@@ -8,7 +8,7 @@ SUBPKGS := $(addprefix $(PKG)/, aws fab config)
 PKGS := $(PKG) $(SUBPKGS)
 GOLINT := $(GOPATH)/bin/golint
 
-$(eval $(call golang-version-check,1.5))
+$(eval $(call golang-version-check,1.6))
 
 export SERVICE_GEARMAN_ADMIN_HTTP_PROTO?=x
 export SERVICE_GEARMAN_ADMIN_HTTP_PORT?=x
