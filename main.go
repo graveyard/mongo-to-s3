@@ -206,7 +206,7 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 		Body:                 reader,
 		Bucket:               aws.String(bucket),
 		Key:                  aws.String(outputName),
-		SSECustomerAlgorithm: aws.String("AES256"),
+		ServerSideEncryption: aws.String("AES256"),
 	})
 	if err != nil {
 		log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
