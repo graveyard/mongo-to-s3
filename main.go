@@ -20,6 +20,7 @@ import (
 
 	"github.com/Clever/mongo-to-s3/config"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
@@ -198,12 +199,14 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 	// required to do this since we can't pipe together the gzip output and pathio, unfortunately
 	// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
 	// from https://github.com/aws/aws-sdk-go/wiki/Getting-Started-Common-Examples
-	client := s3.New(aws.NewConfig().WithRegion(region))
-	uploader := s3manager.NewUploader(&s3manager.UploadOptions{S3: client})
+	session := session.New()
+	client := s3.New(session, aws.NewConfig().WithRegion(region))
+	uploader := s3manager.NewUploaderWithClient(client)
 	_, err = uploader.Upload(&s3manager.UploadInput{
-		Body:   reader,
-		Bucket: aws.String(bucket),
-		Key:    aws.String(outputName),
+		Body:                 reader,
+		Bucket:               aws.String(bucket),
+		Key:                  aws.String(outputName),
+		ServerSideEncryption: aws.String("AES256"),
 	})
 	if err != nil {
 		log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
@@ -383,7 +386,8 @@ func getRegionForBucket(name string) (string, error) {
 	// Any region will work for the region lookup, but the request MUST use
 	// PathStyle
 	config := aws.NewConfig().WithRegion("us-west-1").WithS3ForcePathStyle(true)
-	client := s3.New(config)
+	session := session.New()
+	client := s3.New(session, config)
 	params := s3.GetBucketLocationInput{
 		Bucket: aws.String(name),
 	}
