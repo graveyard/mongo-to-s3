@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
@@ -24,7 +25,8 @@ type Instance struct {
 
 func NewClient(region string) *Client {
 	config := aws.NewConfig().WithRegion(region)
-	svc := ec2.New(config)
+	session := session.New()
+	svc := ec2.New(session, config)
 	return &Client{client: svc}
 }
 
