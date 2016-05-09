@@ -1,9 +1,11 @@
 package transforms
 
 import (
+	"fmt"
+	"sync"
+
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/fatih/set.v0"
-	"sync"
 )
 
 // TableTransform returns a TransformFunc that applies the given transform function.
@@ -68,6 +70,25 @@ func Fieldmap(mappings map[string][]string) optimus.TransformFunc {
 	})
 }
 
+// SafeFieldmap returns a TransformFunc that applies a field mapping to every Row.
+// Exactly like Fieldmap except this one will error for multiple mappings to the same value.
+func SafeFieldmap(mappings map[string][]string) optimus.TransformFunc {
+	return Map(func(row optimus.Row) (optimus.Row, error) {
+		newRow := optimus.Row{}
+		for key, vals := range mappings {
+			for _, val := range vals {
+				if oldRowVal, ok := row[key]; ok {
+					if _, ok := newRow[val]; ok {
+						return nil, fmt.Errorf("Detected multiple mappings to the same value for key %s", val)
+					}
+					newRow[val] = oldRowVal
+				}
+			}
+		}
+		return newRow, nil
+	})
+}
+
 // Valuemap returns a TransformFunc that applies a value mapping to every Row.
 func Valuemap(mappings map[string]map[interface{}]interface{}) optimus.TransformFunc {
 	return Map(func(row optimus.Row) (optimus.Row, error) {
@@ -91,6 +112,7 @@ type joinType struct {
 	int
 }
 
+// JoinType describes the type of join.
 // Left: Always add row from Left table, even if no corresponding rows found in Right table)
 // Inner: Only add row from Left table if corresponding row(s) found in Right table)
 var JoinType = joinStruct{Left: joinType{0}, Inner: joinType{1}}

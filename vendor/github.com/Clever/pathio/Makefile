@@ -1,33 +1,16 @@
+include golang.mk
+.DEFAULT_GOAL := test # override default goal set in library makefile
+
 SHELL := /bin/bash
-PKG = github.com/Clever/pathio
-PKGS := $(PKG)
-READMES = $(addsuffix /README.md, $(PKGS))
+PKG = gopkg.in/Clever/pathio.v3
+PKGS := $(shell go list ./... | grep -v /vendor)
+$(eval $(call golang-version-check,1.6))
+.PHONY: build test
 
-.PHONY: test golint README
-
-golint:
-	@go get github.com/golang/lint/golint
-
-bin: $(PKGS)
-	@go get ./cmd/
-	@go build -o p3 cmd/p3.go
+build:
+	go build -o build/p3 $(PKG)/cmd
 
 test: $(PKGS)
-docs: $(READMES)
-%/README.md:
-	@go get github.com/robertkrimen/godocdown/godocdown
-	@$(GOPATH)/bin/godocdown $(shell dirname $@) > $(GOPATH)/src/$@
-
-$(PKGS): golint docs
-	@go get -d -t $@
-	@gofmt -w=true $(GOPATH)/src/$@*/**.go
-	@echo "LINTING..."
-	@PATH=$(PATH):$(GOPATH)/bin golint $(GOPATH)/src/$@*/**.go
-	@echo ""
-ifeq ($(COVERAGE),1)
-	@go test -cover -coverprofile=$(GOPATH)/src/$@/c.out $@ -test.v
-	@go tool cover -html=$(GOPATH)/src/$@/c.out
-else
-	@echo "TESTING..."
-	@go test $@ -test.v
-endif
+$(PKGS): golang-test-all-strict-deps
+	go get -d -t $@
+	$(call golang-test-all-strict,$@)
