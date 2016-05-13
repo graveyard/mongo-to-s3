@@ -7,6 +7,7 @@ PKG := github.com/Clever/mongo-to-s3
 SUBPKGS := $(addprefix $(PKG)/, aws fab config)
 PKGS := $(PKG) $(SUBPKGS)
 GOLINT := $(GOPATH)/bin/golint
+NUMFILES?=1
 
 $(eval $(call golang-version-check,1.6))
 
@@ -25,6 +26,9 @@ $(GOLINT):
 
 build: clean
 	GO15VENDOREXPERIMENT=1 go build -o "mongo-to-s3" $(PKG)
+
+run: build
+	./mongo-to-s3 -database $(DATABASE) -bucket clever-analytics-dev -config $(CONFIG) -collections $(COLLECTIONS) -numfiles $(NUMFILES)
 
 clean:
 	rm -f mongo-to-s3
