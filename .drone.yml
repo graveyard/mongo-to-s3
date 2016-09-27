@@ -11,7 +11,7 @@ notify:
 publish:
   catapult:
     url: $$catapult_url
-    application: "mongo-to-s3"
+    application: mongo-to-s3
   docker:
     docker_host: $$docker_server
     email: $$docker_email
@@ -23,8 +23,9 @@ publish:
     username: $$docker_username
     when:
       branch: master
+  report_card: {}
 services:
-  - clever/mongo:3.0
+- clever/mongo:3.0
 script:
-  - sudo apt-get update
-  - make all
+- sudo apt-get update
+- make all
