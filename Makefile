@@ -9,7 +9,7 @@ PKGS := $(PKG) $(SUBPKGS)
 GOLINT := $(GOPATH)/bin/golint
 NUMFILES?=1
 
-$(eval $(call golang-version-check,1.7))
+$(eval $(call golang-version-check,1.8))
 
 export SERVICE_GEARMAN_ADMIN_HTTP_PROTO?=x
 export SERVICE_GEARMAN_ADMIN_HTTP_PORT?=x
