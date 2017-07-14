@@ -18,6 +18,7 @@ type Table struct {
 type Field struct {
 	Destination string `yaml:"dest"`
 	Source      string `yaml:"source"`
+	Type        string `yaml:"exists"`
 }
 
 type Meta struct {
@@ -51,6 +52,20 @@ func (t Table) FieldMap() map[string][]string {
 func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
 	return func(r optimus.Row) (optimus.Row, error) {
 		r[dataDateColumn] = timestamp
+		return r, nil
+	}
+}
+
+// GetExistentialTransformerFn returns a function which turns a PII field into a boolean
+// whether it exists or not. Runs before the field map.
+func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		for _, field := range t.Fields {
+			if field.Type == "exist" {
+				_, ok := r[field.Source]
+				r[field.Source] = ok
+			}
+		}
 		return r, nil
 	}
 }
