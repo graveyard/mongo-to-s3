@@ -18,7 +18,7 @@ type Table struct {
 type Field struct {
 	Destination string `yaml:"dest"`
 	Source      string `yaml:"source"`
-	Type        string `yaml:"exists"`
+	PII         bool   `yaml:"pii"`
 }
 
 type Meta struct {
@@ -61,7 +61,7 @@ func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (opti
 func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error) {
 	return func(r optimus.Row) (optimus.Row, error) {
 		for _, field := range t.Fields {
-			if field.Type == "exist" {
+			if field.PII {
 				_, ok := r[field.Source]
 				r[field.Source] = ok
 			}
