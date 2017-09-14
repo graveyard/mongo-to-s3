@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
+	"reflect"
 )
 
 type Config map[string]Table
@@ -62,12 +63,20 @@ func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error)
 	return func(r optimus.Row) (optimus.Row, error) {
 		for _, field := range t.Fields {
 			if field.PII {
-				_, ok := r[field.Source]
-				r[field.Source] = ok
+				val, ok := r[field.Source]
+				if !ok {
+					r[field.Source] = ok
+				} else {
+					r[field.Source] = !IsZeroOfUnderlyingType(val)
+				}
 			}
 		}
 		return r, nil
 	}
+}
+
+func IsZeroOfUnderlyingType(x interface{}) bool {
+	return reflect.DeepEqual(x, reflect.Zero(reflect.TypeOf(x)).Interface())
 }
 
 // Flattener returns a function which flattens nested optimus rows into flat rows
