@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
+	"reflect"
 )
 
 type Config map[string]Table
@@ -18,6 +19,7 @@ type Table struct {
 type Field struct {
 	Destination string `yaml:"dest"`
 	Source      string `yaml:"source"`
+	PII         bool   `yaml:"pii"`
 }
 
 type Meta struct {
@@ -53,6 +55,28 @@ func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (opti
 		r[dataDateColumn] = timestamp
 		return r, nil
 	}
+}
+
+// GetExistentialTransformerFn returns a function which turns a PII field into a boolean
+// whether it exists or not. Runs before the field map.
+func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error) {
+	return func(r optimus.Row) (optimus.Row, error) {
+		for _, field := range t.Fields {
+			if field.PII {
+				val, ok := r[field.Source]
+				if !ok {
+					r[field.Source] = ok
+				} else {
+					r[field.Source] = !IsZeroOfUnderlyingType(val)
+				}
+			}
+		}
+		return r, nil
+	}
+}
+
+func IsZeroOfUnderlyingType(x interface{}) bool {
+	return reflect.DeepEqual(x, reflect.Zero(reflect.TypeOf(x)).Interface())
 }
 
 // Flattener returns a function which flattens nested optimus rows into flat rows
