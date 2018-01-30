@@ -373,15 +373,26 @@ func main() {
 		log.Println("Not posting s3-to-redshift job")
 	} else {
 		log.Println("Submitting job to Gearman admin")
+
+		payload, err := json.Marshal(map[string]interface{}{
+			"bucket":   flags.Bucket,
+			"schema":   "mongo",
+			"tables":   strings.Join(outputTableNames, ", "),
+			"truncate": true,
+			"config":   confFileName,
+			"date":     timestamp,
+		})
+		if err != nil {
+			log.Fatalf("Error creating new payload: %s", err)
+		}
+
 		client := &http.Client{}
 		endpoint := gearmanAdminURL + "/s3-to-redshift"
-		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s --date %s",
-			flags.Bucket, strings.Join(outputTableNames, ","), confFileName, timestamp)
-		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))
+		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
 		if err != nil {
 			log.Fatalf("Error creating new request: %s", err)
 		}
-		req.Header.Add("Content-Type", "text/plain")
+		req.Header.Add("Content-Type", "application/json")
 		_, err = client.Do(req)
 		if err != nil {
 			log.Fatalf("Error submitting job:%s", err)
