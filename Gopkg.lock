@@ -7,12 +7,6 @@
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Clever/mongo-to-s3"
-  packages = ["config"]
-  revision = "523200971617409a96ba62ef6a63be434621ea52"
-
-[[projects]]
   name = "github.com/Clever/pathio"
   packages = ["."]
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
@@ -75,6 +69,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d9830dd5949f7d7d6b2e8e17be9f754064c009a31882a3e06be7669688f9e7d8"
+  inputs-digest = "fd8085d732897299208aae53668cfe22e2e2d58a537daea35d8ab1f4481ee89e"
   solver-name = "gps-cdcl"
   solver-version = 1
