@@ -377,7 +377,7 @@ func main() {
 		payload, err := json.Marshal(map[string]interface{}{
 			"bucket":   flags.Bucket,
 			"schema":   "mongo",
-			"tables":   strings.Join(outputTableNames, ", "),
+			"tables":   strings.Join(outputTableNames, ","),
 			"truncate": true,
 			"config":   confFileName,
 			"date":     timestamp,
