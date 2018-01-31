@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -24,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
+	"github.com/Clever/configure"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
@@ -34,15 +34,7 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
-var (
-	configPath  = flag.String("config", "config.yml", "Path to config file (default: config.yml)")
-	collections = flag.String("collections", "", "OPTIONAL: Comma-separated collections to process from the provided config file")
-	url         = flag.String("database", "", "NECESSARY: Database url of existing instance")
-	bucket      = flag.String("bucket", "clever-analytics", "s3 bucket to upload to (default: clever-analytics)")
-	numFiles    = flag.Int("numfiles", 1, "The number of files we wish to split the output into. Uses a manifest file if n > 1")
-
-	gearmanAdminURL string
-)
+var gearmanAdminURL string
 
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
@@ -251,15 +243,36 @@ func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 }
 
 func main() {
-	flag.Parse()
-	if *numFiles < 1 {
+	flags := struct {
+		ConfigPath  string `config:"config"`
+		Collections string `config:"collections"`
+		URL         string `config:"database"`
+		Bucket      string `config:"bucket"`
+		NumFiles    string `config:"numfiles"` // configure library doesn't support ints or floats
+	}{ // specifying default values:
+		ConfigPath:  "config.yml",
+		Collections: "",
+		URL:         "",
+		Bucket:      "clever-analytics",
+		NumFiles:    "1",
+	}
+	if err := configure.Configure(&flags); err != nil {
+		log.Fatalf("err: %#v", err)
+	}
+
+	numFiles, err := strconv.Atoi(flags.NumFiles)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if numFiles < 1 {
 		log.Fatal("Must specify a number of output file parts >= 1")
 	}
-	if *url == "" {
+	if flags.URL == "" {
 		log.Fatal("Database url of existing instance is necessary")
 	}
-	fmt.Println("Connecting to mongo: ", *url)
-	mongoClient := mongoConnection(*url)
+
+	fmt.Println("Connecting to mongo: ", flags.URL)
+	mongoClient := mongoConnection(flags.URL)
 	log.Println("Connected to mongo")
 
 	// Times are rounded down to the nearest hour
@@ -277,9 +290,9 @@ func main() {
 		}
 	} */
 
-	configYaml := parseConfigFile(*configPath)
-	confFileName := copyConfigFile(*bucket, timestamp, *configPath)
-	sourceTables, err := getTablesFromConf(*collections, configYaml)
+	configYaml := parseConfigFile(flags.ConfigPath)
+	confFileName := copyConfigFile(flags.Bucket, timestamp, flags.ConfigPath)
+	sourceTables, err := getTablesFromConf(flags.Collections, configYaml)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -304,8 +317,8 @@ func main() {
 
 		// we want to split up the file for performance reasons
 		var waitGroup sync.WaitGroup
-		waitGroup.Add(*numFiles)
-		for i := 0; i < *numFiles; i++ {
+		waitGroup.Add(numFiles)
+		for i := 0; i < numFiles; i++ {
 			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
 			outputFilenames = append(outputFilenames, outputName)
 			log.Printf("Outputting file number: %d to location: %s", i, outputName)
@@ -335,21 +348,21 @@ func main() {
 			// can't just put without goroutine because then only one iteration of the loop gets to run
 			go func() {
 				defer waitGroup.Done()
-				uploadFile(reader, *bucket, outputName)
+				uploadFile(reader, flags.Bucket, outputName)
 			}()
 		}
 		waitGroup.Wait()
-		log.Printf("Output %d total rows in %d files", totalSummedRows, *numFiles)
+		log.Printf("Output %d total rows in %d files", totalSummedRows, numFiles)
 		if totalSummedRows != totalMongoRows {
 			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
 		}
 		// we always upload a manifest including the files we just created
 		manifestFilename := formatFilename(timestamp, table.Destination, "", ".manifest")
-		manifestReader, err := createManifest(*bucket, outputFilenames)
+		manifestReader, err := createManifest(flags.Bucket, outputFilenames)
 		if err != nil {
 			log.Fatalf("Error creating manifest: %s", err)
 		}
-		uploadFile(manifestReader, *bucket, manifestFilename)
+		uploadFile(manifestReader, flags.Bucket, manifestFilename)
 	}
 
 	// submit gearman job for all tables
@@ -360,15 +373,26 @@ func main() {
 		log.Println("Not posting s3-to-redshift job")
 	} else {
 		log.Println("Submitting job to Gearman admin")
+
+		payload, err := json.Marshal(map[string]interface{}{
+			"bucket":   flags.Bucket,
+			"schema":   "mongo",
+			"tables":   strings.Join(outputTableNames, ", "),
+			"truncate": true,
+			"config":   confFileName,
+			"date":     timestamp,
+		})
+		if err != nil {
+			log.Fatalf("Error creating new payload: %s", err)
+		}
+
 		client := &http.Client{}
 		endpoint := gearmanAdminURL + "/s3-to-redshift"
-		payload := fmt.Sprintf("--bucket %s --schema mongo --tables %s --truncate --config %s --date %s",
-			*bucket, strings.Join(outputTableNames, ","), confFileName, timestamp)
-		req, err := http.NewRequest("POST", endpoint, bytes.NewReader([]byte(payload)))
+		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
 		if err != nil {
 			log.Fatalf("Error creating new request: %s", err)
 		}
-		req.Header.Add("Content-Type", "text/plain")
+		req.Header.Add("Content-Type", "application/json")
 		_, err = client.Do(req)
 		if err != nil {
 			log.Fatalf("Error submitting job:%s", err)
