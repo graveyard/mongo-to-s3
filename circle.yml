@@ -9,8 +9,9 @@ checkout:
   - $HOME/ci-scripts/circleci/golang-move-project
 test:
   override:
+  - sudo apt-get update
   - make install_deps
-  - make build
+  - make all
   post:
   - $HOME/ci-scripts/circleci/report-card $RC_DOCKER_USER $RC_DOCKER_PASS "$RC_DOCKER_EMAIL" $RC_GITHUB_TOKEN
 deployment:
