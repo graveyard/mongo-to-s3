@@ -1,16 +1,18 @@
 include golang.mk
-.DEFAULT_GOAL := test # override default goal set in library makefile
+include sfncli.mk
+.DEFAULT_GOAL := test
 
-.PHONY: all build clean test $(PKGS)
 SHELL := /bin/bash
 PKG := github.com/Clever/mongo-to-s3
-SUBPKGS := $(addprefix $(PKG)/, aws fab config)
-PKGS := $(PKG) $(SUBPKGS)
-GOLINT := $(GOPATH)/bin/golint
-NUMFILES?=1
+PKGS := $(shell go list ./... | grep -v /vendor)
+EXECUTABLE = $(shell basename $(PKG))
+SFNCLI_VERSION := latest
+
+.PHONY: test $(PKGS) run install_deps build
 
 $(eval $(call golang-version-check,1.9))
 
+# test vars
 export SERVICE_GEARMAN_ADMIN_HTTP_PROTO?=x
 export SERVICE_GEARMAN_ADMIN_HTTP_PORT?=x
 export SERVICE_GEARMAN_ADMIN_HTTP_HOST?=x
@@ -19,21 +21,15 @@ export GEARMAN_ADMIN_PASS?=x
 export GEARMAN_ADMIN_PATH?=x
 test: $(PKGS)
 
-all: build test
-
-$(GOLINT):
-	go get github.com/golang/lint/golint
-
-build: clean
-	GO15VENDOREXPERIMENT=1 go build -o "mongo-to-s3" $(PKG)
+build: bin/sfncli
+	$(call golang-build,$(PKG),$(EXECUTABLE))
 
 run: build
-	./mongo-to-s3 -database $(DATABASE) -bucket clever-analytics-dev -config $(CONFIG) -collections $(COLLECTIONS) -numfiles $(NUMFILES)
-
-clean:
-	rm -f mongo-to-s3
-	rm -f c.out
-	rm -f config/c.out
+	bin/sfncli --activityname $(_DEPLOY_ENV)--$(_APP_NAME) \
+		--region us-west-2 \
+		--cloudwatchregion us-west-1 \
+		--workername `hostname` \
+		--cmd bin/$(EXECUTABLE)
 
 $(PKGS): golang-test-all-deps
 	$(call golang-test-all,$@)

@@ -1,32 +1,5 @@
-
-# Gopkg.toml example
-#
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
-# for detailed Gopkg.toml documentation.
-#
-# required = ["github.com/user/thing/cmd/thing"]
-# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
-#
-# [[constraint]]
-#   name = "github.com/user/project"
-#   version = "1.0.0"
-#
-# [[constraint]]
-#   name = "github.com/user/project2"
-#   branch = "dev"
-#   source = "github.com/myfork/project2"
-#
-# [[override]]
-#  name = "github.com/x/y"
-#  version = "2.4.0"
-
-
 [[constraint]]
   name = "github.com/Clever/discovery-go"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/Clever/mongo-to-s3"
 
 [[constraint]]
   name = "github.com/Clever/pathio"
@@ -48,5 +21,5 @@
   name = "gopkg.in/yaml.v2"
 
 [[constraint]]
-  name = "github.com/clever/configure"
+  name = "github.com/Clever/configure"
   version = "1.0.0"
