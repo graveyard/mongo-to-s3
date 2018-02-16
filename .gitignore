@@ -26,5 +26,5 @@ _testmain.go
 *.test
 *.prof
 
-bin/
-vendor/
+# this gets built by .drone.yml, we don't commit it or anything
+mongo-to-s3

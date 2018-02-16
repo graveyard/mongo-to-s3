@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  name = "github.com/Clever/configure"
-  packages = ["."]
-  revision = "e62cf1715b47d2ea5f09b5c8f04facecfdedcaf2"
-  version = "1.0.0"
-
-[[projects]]
   name = "github.com/Clever/discovery-go"
   packages = ["."]
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
@@ -19,34 +13,7 @@
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
-  packages = [
-    "aws",
-    "aws/awserr",
-    "aws/awsutil",
-    "aws/client",
-    "aws/client/metadata",
-    "aws/corehandlers",
-    "aws/credentials",
-    "aws/credentials/ec2rolecreds",
-    "aws/defaults",
-    "aws/ec2metadata",
-    "aws/request",
-    "aws/session",
-    "private/endpoints",
-    "private/protocol",
-    "private/protocol/ec2query",
-    "private/protocol/query",
-    "private/protocol/query/queryutil",
-    "private/protocol/rest",
-    "private/protocol/restxml",
-    "private/protocol/xml/xmlutil",
-    "private/signer/v4",
-    "private/waiter",
-    "service/ec2",
-    "service/s3",
-    "service/s3/s3iface",
-    "service/s3/s3manager"
-  ]
+  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/defaults","aws/ec2metadata","aws/request","aws/session","private/endpoints","private/protocol","private/protocol/ec2query","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/restxml","private/protocol/xml/xmlutil","private/signer/v4","private/waiter","service/ec2","service/s3","service/s3/s3iface","service/s3/s3manager"]
   revision = "b88413233bad150ce837e87ba5e27cf70594fdb9"
 
 [[projects]]
@@ -73,24 +40,13 @@
 
 [[projects]]
   name = "gopkg.in/Clever/kayvee-go.v3"
-  packages = [
-    ".",
-    "logger"
-  ]
+  packages = [".","logger"]
   revision = "d49feee080e8e32e01a5f415cf1f9dc264dfb043"
   version = "v3.0.0"
 
 [[projects]]
   name = "gopkg.in/Clever/optimus.v3"
-  packages = [
-    ".",
-    "sinks/json",
-    "sources/mongo",
-    "sources/slice",
-    "tests",
-    "transformer",
-    "transforms"
-  ]
+  packages = [".","sinks/json","sources/mongo","sources/slice","tests","transformer","transforms"]
   revision = "723bfdc306c1dc9f96f8f30f4408818470139ebf"
   version = "v3.7.0"
 
@@ -102,12 +58,7 @@
 
 [[projects]]
   name = "gopkg.in/mgo.v2"
-  packages = [
-    ".",
-    "bson",
-    "internal/sasl",
-    "internal/scram"
-  ]
+  packages = [".","bson","internal/sasl","internal/scram"]
   revision = "b6e2fa371e64216a45e61072a96d4e3859f169da"
 
 [[projects]]
@@ -118,6 +69,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "367dccabe48ba86f96c2ff334c144ca8b628c94481c6199eb2b027f7334774f3"
+  inputs-digest = "fd8085d732897299208aae53668cfe22e2e2d58a537daea35d8ab1f4481ee89e"
   solver-name = "gps-cdcl"
   solver-version = 1
