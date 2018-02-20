@@ -39,7 +39,6 @@ func CreateSISDBFromLatestSnapshot(name string) (Instance, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(out.Bytes()))
 	for scanner.Scan() {
 		text := scanner.Text()
-		fmt.Println(text)
 		line := strings.Split(text, " ")
 		if len(line) == 5 && strings.Contains(text, "Restoring image from snapshot_id") {
 			snapshotID = line[4]

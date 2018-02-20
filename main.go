@@ -271,7 +271,6 @@ func main() {
 		log.Fatal("Database url of existing instance is necessary")
 	}
 
-	fmt.Println("Connecting to mongo: ", flags.URL)
 	mongoClient := mongoConnection(flags.URL)
 	log.Println("Connected to mongo")
 
