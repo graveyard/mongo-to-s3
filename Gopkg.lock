@@ -13,6 +13,12 @@
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/Clever/mongo-to-s3"
+  packages = ["config"]
+  revision = "eba1aabc9ddcab1c8cebc0bb3f2b8a0c962a6594"
+
+[[projects]]
   name = "github.com/Clever/pathio"
   packages = ["."]
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
@@ -28,11 +34,16 @@
     "aws/corehandlers",
     "aws/credentials",
     "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/stscreds",
     "aws/defaults",
     "aws/ec2metadata",
+    "aws/endpoints",
     "aws/request",
     "aws/session",
-    "private/endpoints",
+    "aws/signer/v4",
+    "internal/sdkrand",
+    "internal/shareddefaults",
     "private/protocol",
     "private/protocol/ec2query",
     "private/protocol/query",
@@ -40,14 +51,14 @@
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
-    "private/signer/v4",
-    "private/waiter",
     "service/ec2",
     "service/s3",
     "service/s3/s3iface",
-    "service/s3/s3manager"
+    "service/s3/s3manager",
+    "service/sts"
   ]
-  revision = "b88413233bad150ce837e87ba5e27cf70594fdb9"
+  revision = "63324a33d7e42a386c04d4daec764a3de243492e"
+  version = "v1.13.0"
 
 [[projects]]
   branch = "master"
@@ -58,13 +69,13 @@
 [[projects]]
   name = "github.com/go-ini/ini"
   packages = ["."]
-  revision = "2e44421e256d82ebbf3d4d4fcabe8930b905eff3"
+  revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
+  version = "v1.32.0"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
-  revision = "3433f3ea46d9f8019119e7dd41274e112a2359a9"
-  version = "0.2.2"
+  revision = "0b12d6b5"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -118,6 +129,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "367dccabe48ba86f96c2ff334c144ca8b628c94481c6199eb2b027f7334774f3"
+  inputs-digest = "fa90584eb7e936396f3df7de68f4502afc13ffe88dfe10b3553338713346b36f"
   solver-name = "gps-cdcl"
   solver-version = 1

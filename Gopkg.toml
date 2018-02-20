@@ -1,3 +1,8 @@
+
+[[constraint]]
+  name = "github.com/Clever/configure"
+  version = "1.0.0"
+
 [[constraint]]
   name = "github.com/Clever/discovery-go"
 
@@ -6,6 +11,7 @@
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
+  version = "1.13.0"
 
 [[constraint]]
   name = "github.com/stretchr/testify"
@@ -19,7 +25,3 @@
 
 [[constraint]]
   name = "gopkg.in/yaml.v2"
-
-[[constraint]]
-  name = "github.com/Clever/configure"
-  version = "1.0.0"
