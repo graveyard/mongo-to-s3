@@ -7,12 +7,13 @@ machine:
 checkout:
   post:
   - $HOME/ci-scripts/circleci/golang-move-project
-test:
+compile:
   override:
   - make install_deps
   - make build
-  post:
-  - $HOME/ci-scripts/circleci/report-card $RC_DOCKER_USER $RC_DOCKER_PASS "$RC_DOCKER_EMAIL" $RC_GITHUB_TOKEN
+test:
+  override:
+  - make test
 deployment:
   master:
     owner: Clever
