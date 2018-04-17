@@ -13,12 +13,6 @@
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/Clever/mongo-to-s3"
-  packages = ["config"]
-  revision = "eba1aabc9ddcab1c8cebc0bb3f2b8a0c962a6594"
-
-[[projects]]
   name = "github.com/Clever/pathio"
   packages = ["."]
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
@@ -45,13 +39,11 @@
     "internal/sdkrand",
     "internal/shareddefaults",
     "private/protocol",
-    "private/protocol/ec2query",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
-    "service/ec2",
     "service/s3",
     "service/s3/s3iface",
     "service/s3/s3manager",
@@ -129,6 +121,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fa90584eb7e936396f3df7de68f4502afc13ffe88dfe10b3553338713346b36f"
+  inputs-digest = "76bb66fa4c6bb740b074ab22fd4744af253d6bf7453aebe455d911c3e5cae908"
   solver-name = "gps-cdcl"
   solver-version = 1
