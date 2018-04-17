@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +34,7 @@ import (
 )
 
 var gearmanAdminURL string
+var configs map[string]string
 
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
@@ -63,6 +63,11 @@ func init() {
 	gearmanAdminPass := getEnv("GEARMAN_ADMIN_PASS")
 	gearmanAdminPath := getEnv("GEARMAN_ADMIN_PATH")
 	gearmanAdminURL = generateServiceEndpoint(gearmanAdminUser, gearmanAdminPass, gearmanAdminPath)
+	configs = map[string]string{
+		"il":      getEnv("IL_CONFIG"),
+		"sis":     getEnv("SIS_CONFIG"),
+		"app_sis": getEnv("APP_SIS_CONFIG"),
+	}
 }
 
 func mongoConnection(url string) *mgo.Session {
@@ -86,6 +91,16 @@ func parseConfigFile(path string) config.Config {
 		log.Fatal("err reading file: ", err)
 	}
 	configYaml, err := config.ParseYAML(data)
+	if err != nil {
+		log.Fatal("err parsing config file: ", err)
+	}
+
+	return configYaml
+}
+
+// parseConfigString takes in a config from an env var
+func parseConfigString(conf string) config.Config {
+	configYaml, err := config.ParseYAML([]byte(conf))
 	if err != nil {
 		log.Fatal("err parsing config file: ", err)
 	}
@@ -122,28 +137,15 @@ func exportData(source optimus.Table, table config.Table, sink optimus.Sink, tim
 	return rows, err
 }
 
-func copyConfigFile(bucket, timestamp, path string) string {
-	input, err := pathio.Reader(path)
-	if err != nil {
-		log.Fatal("error opening config file", err)
-	}
+func copyConfigFile(bucket, timestamp, data, configName string) string {
 	// config_name is parsed from the input path b/c we have a different configs`
 	// get the yaml file at the end of the path
-	pathRegex := regexp.MustCompile("(.*/)?(.+)\\.yml")
-	matches := pathRegex.FindStringSubmatch(path)
-	if len(matches) < 3 {
-		log.Fatalf("issue parsing config filename from config path: %s, err: %s", path, err)
-	}
-	outPath := formatFilename(timestamp, matches[2], "", ".yml")
+	outPath := formatFilename(timestamp, configName, "", ".yml")
 	if bucket != "" {
 		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
-	outputBytes, err := ioutil.ReadAll(input)
-	if err != nil {
-		log.Fatal("error reading config file: ", err)
-	}
 	log.Printf("uploading conf file to: %s", outPath)
-	err = pathio.Write(outPath, outputBytes)
+	err := pathio.Write(outPath, []byte(data))
 	if err != nil {
 		log.Fatal("error writing output file: ", err)
 	}
@@ -243,16 +245,16 @@ func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 
 func main() {
 	flags := struct {
-		ConfigPath  string `config:"config"`
+		Name        string `config:"config"`
 		Collections string `config:"collections"`
 		URL         string `config:"database"`
 		Bucket      string `config:"bucket"`
 		NumFiles    string `config:"numfiles"` // configure library doesn't support ints or floats
 	}{ // specifying default values:
-		ConfigPath:  "config.yml",
+		Name:        "",
 		Collections: "",
 		URL:         "",
-		Bucket:      "clever-analytics",
+		Bucket:      "TODO",
 		NumFiles:    "1",
 	}
 	if err := configure.Configure(&flags); err != nil {
@@ -276,8 +278,14 @@ func main() {
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
 
-	configYaml := parseConfigFile(flags.ConfigPath)
-	confFileName := copyConfigFile(flags.Bucket, timestamp, flags.ConfigPath)
+	//configYaml := parseConfigFile(flags.ConfigPath)
+
+	c, ok := configs[flags.Name]
+	if !ok {
+		log.Fatal("config sucks")
+	}
+	configYaml := parseConfigString(c)
+	confFileName := copyConfigFile(flags.Bucket, timestamp, c, flags.Name)
 	sourceTables, err := getTablesFromConf(flags.Collections, configYaml)
 	if err != nil {
 		log.Fatal(err)
@@ -384,15 +392,6 @@ func main() {
 			log.Fatalf("Error submitting job:%s", err)
 		}
 	}
-
-	/* UNUSED until we can figure out how to deploy: https://clever.atlassian.net/browse/IP-349
-	if instance.ID != "" {
-		log.Println("terminating instance")
-		err := c.TerminateInstance(instance.ID)
-		if err != nil {
-			log.Println("err terminating instance: ", err)
-		}
-	} */
 }
 
 // getRegionForBucket looks up the region name for the given bucket
