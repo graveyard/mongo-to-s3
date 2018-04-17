@@ -65,9 +65,8 @@ func init() {
 	gearmanAdminURL = generateServiceEndpoint(gearmanAdminUser, gearmanAdminPass, gearmanAdminPath)
 }
 
-// Running instance using fab takes up to ~10 minutes, so will retry over this time period, then fail after 10 minutes
 func mongoConnection(url string) *mgo.Session {
-	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
+	s, err := mgo.DialWithTimeout(url, 1*time.Minute)
 	if err != nil {
 		log.Fatal("err connecting to mongo instance: ", err)
 	}
@@ -276,18 +275,6 @@ func main() {
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
-
-	//awsClient := aws.NewClient("us-west-1")
-	/* UNUSED for now: https://clever.atlassian.net/browse/IP-349
-	//var instance fab.Instance
-	if instance.SnapshotID != "" {
-		snapshot, err := awsClient.FindSnapshot(instance.SnapshotID)
-		if err != nil {
-			log.Println("err finding latest snapshot: ", err)
-		} else {
-			timestamp = snapshot.StartTime.Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
-		}
-	} */
 
 	configYaml := parseConfigFile(flags.ConfigPath)
 	confFileName := copyConfigFile(flags.Bucket, timestamp, flags.ConfigPath)
