@@ -1,0 +1,30 @@
+run:
+  type: docker
+env:
+- GEARMAN_ADMIN_USER
+- GEARMAN_ADMIN_PASS
+- GEARMAN_ADMIN_PATH
+- IL_CONFIG
+- SIS_CONFIG
+- APP_SIS_CONFIG
+resources:
+  cpu: 0.0
+  soft_mem_limit: 0.8
+  max_mem: 1.5
+dependencies:
+- gearman-admin
+team: eng-ip
+aws:
+  custom: true
+  s3:
+    read:
+      - clever-analytics
+      - redshift-respawn
+      - district-user-permissions-snapshot
+    write:
+      - clever-analytics
+      - redshift-respawn
+      - district-user-permissions-snapshot
+  managed:
+    clever:
+    - Workflows
