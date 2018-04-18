@@ -14,20 +14,5 @@ compile:
 test:
   override:
   - make test
-deployment:
-  master:
-    owner: Clever
-    commands:
-    - $HOME/ci-scripts/circleci/docker-publish $DOCKER_USER $DOCKER_PASS "$DOCKER_EMAIL" $DOCKER_ORG
-    - $HOME/ci-scripts/circleci/catapult-publish $CATAPULT_URL $CATAPULT_USER $CATAPULT_PASS mongo-to-s3
-    - $HOME/ci-scripts/circleci/dapple-deploy $DAPPLE_URL $DAPPLE_USER $DAPPLE_PASS mongo-to-s3 clever-dev no-confirm-deploy
-    - $HOME/ci-scripts/circleci/dapple-deploy $DAPPLE_URL $DAPPLE_USER $DAPPLE_PASS mongo-to-s3 production no-confirm-deploy
-    branch: master
-  non-master:
-    owner: Clever
-    commands:
-    - $HOME/ci-scripts/circleci/docker-publish $DOCKER_USER $DOCKER_PASS "$DOCKER_EMAIL" $DOCKER_ORG
-    - $HOME/ci-scripts/circleci/catapult-publish $CATAPULT_URL $CATAPULT_USER $CATAPULT_PASS mongo-to-s3
-    branch: /^(?!master$).*$/
 general:
   build_dir: ../.go_workspace/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME
