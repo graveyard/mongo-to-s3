@@ -30,7 +30,7 @@ Right now, `mongo-to-s3` will attempt export all fields/tables in the `X_config.
 
 ## Updating config files
 
-Configs are located in [ark-config](https://github.com/Clever/ark-config/blob/master/apps/mongo-to-s3/production.yml) env vars in `YAML` and follow this format:
+Configs are env vars in `YAML` and follow this format:
 ```yaml
 tablename-whateveryouwant:
   dest: <redshift_table_name>
@@ -51,6 +51,8 @@ tablename-whateveryouwant:
     datadatecolumn: _data_timestamp
     schema: <redshift_schema_name>
 ```
+
+Inrternal note: configs are located in [ark-config](https://github.com/Clever/ark-config/blob/master/apps/mongo-to-s3/production.yml)
 
 There are a few tricky things, including some items that are changing in the near future.
 
