@@ -71,7 +71,7 @@ func init() {
 }
 
 func mongoConnection(url string) *mgo.Session {
-	s, err := mgo.DialWithTimeout(url, 1*time.Minute)
+	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
 	if err != nil {
 		log.Fatal("err connecting to mongo instance: ", err)
 	}
