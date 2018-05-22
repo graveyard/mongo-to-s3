@@ -77,7 +77,7 @@ func mongoConnection(url string) *mgo.Session {
 	}
 	s.SetMode(mgo.Monotonic, true)
 	s.SetBatch(1000)
-	s.SetPrefetch(0.1) // fetch next batch of documents once we are down to the last 10%
+	s.SetPrefetch(0.1)    // fetch next batch of documents once we are down to the last 10%
 	s.SetCursorTimeout(0) // disable cursor timeout
 	return s
 }
