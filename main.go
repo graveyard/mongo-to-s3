@@ -76,8 +76,8 @@ func mongoConnection(url string) *mgo.Session {
 		log.Fatal("err connecting to mongo instance: ", err)
 	}
 	s.SetMode(mgo.Monotonic, true)
-	s.SetBatch(1000)
-	s.SetPrefetch(0.1)    // fetch next batch of documents once we are down to the last 10%
+	s.SetBatch(10000)
+	s.SetPrefetch(0.5)    // fetch next batch of documents once we are down to the last 50%
 	s.SetCursorTimeout(0) // disable cursor timeout
 	return s
 }
