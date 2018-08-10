@@ -23,6 +23,7 @@ jobs:
     - run:
         command: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
         name: Set up CircleCI artifacts directories
+    - run: $HOME/ci-scripts/circleci/golang-move-project
     - run: make install_deps
     - run: make build
     - run: make test
