@@ -98,10 +98,10 @@
   version = "v3.7.0"
 
 [[projects]]
-  branch = "v0.1.1"
   name = "gopkg.in/fatih/set.v0"
   packages = ["."]
-  revision = "27c40922c40b43fe04554d8223a402af3ea333f3"
+  revision = "57907de300222151a123d29255ed17f5ed43fad3"
+  version = "v0.1.0"
 
 [[projects]]
   name = "gopkg.in/mgo.v2"
@@ -121,6 +121,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "76bb66fa4c6bb740b074ab22fd4744af253d6bf7453aebe455d911c3e5cae908"
+  inputs-digest = "3a533a19600b6519bb1fd3555eead27bda873b18ab245785f18b87554d24eb40"
   solver-name = "gps-cdcl"
   solver-version = 1
