@@ -110,7 +110,11 @@ func parseConfigString(conf string) config.Config {
 
 func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	collection := s.DB("").C(table.Source)
-	iter := collection.Find(nil).Iter()
+	iter := collection.
+		Find(nil).
+		Batch(10000).
+		Prefetch(0.7).
+		Iter()
 	return mongosource.New(iter)
 }
 
