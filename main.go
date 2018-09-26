@@ -38,6 +38,11 @@ var gearmanAdminURL string
 var configs map[string]string
 var kvLog = logger.NewWithContext("mongo-to-s3", logger.M{})
 
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start).Seconds()
+	kvLog.GaugeFloat(name, elapsed)
+}
+
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
 	val := os.Getenv(envVar)
@@ -125,6 +130,7 @@ func formatFilename(timestamp, collectionName, fileIndex, extension string) stri
 }
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
+	defer timeTrack(time.Now(), "exportData")
 	rows := 0
 	datePopulator := config.GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
 	existentialTransformer := config.GetExistentialTransformerFn(table)
@@ -156,7 +162,7 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 
 // Given the command line inputs and the config file, choose the tables we want to push to s3
 func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.Table, error) {
-	startTime := time.Now()
+	defer timeTrack(time.Now(), "getTablesFromConf")
 	var outTables []config.Table
 	// none specified, list all
 	if sourceInput == "" {
@@ -185,15 +191,13 @@ func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.T
 			outTables = append(outTables, curTable)
 		}
 	}
-	kvLog.GaugeFloatD("getTablesFromConfSeconds", time.Since(startTime).Seconds(), logger.M{
-		"num_tables": len(outTables),
-	})
 	return outTables, nil
 }
 
 // uploadFile handles the awkwardness around s3 regions to upload the file
 // it takes in a reader for maximum flexibility
 func uploadFile(reader io.Reader, bucket, outputName string) {
+	defer timeTrack(time.Now(), "uploadFile")
 	s3Path := fmt.Sprintf("s3://%s/%s", bucket, outputName)
 	log.Printf("uploading file: %s to path: %s", outputName, s3Path)
 	region, err := getRegionForBucket(bucket)
@@ -236,6 +240,7 @@ type Manifest struct {
 //    {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
 //  ] }
 func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
+	defer timeTrack(time.Now(), "createManifest")
 	var entryArray EntryArray
 	for _, fn := range dataFilenames {
 		entryArray = append(entryArray, map[string]interface{}{
@@ -310,6 +315,8 @@ func main() {
 
 	outputTableNames := []string{}
 	for _, table := range sourceTables {
+		startTime := time.Now()
+
 		// add name to list for submitting to next step in pipeline
 		outputTableNames = append(outputTableNames, table.Destination)
 		outputFilenames := []string{}
@@ -318,27 +325,18 @@ func main() {
 		var totalSummedRows int64
 		var totalMongoRows int64
 
-		kvLog.InfoD("configuring Optimus table", logger.M{
-			"table": table,
-		})
 		mongoSource := configuredOptimusTable(mongoClient, table)
 
-		startTime := time.Now()
 		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
 			totalMongoRows++
 			if totalMongoRows%1000000 == 0 {
-				kvLog.InfoD("processing mongo row", logger.M{
-					"table": table,
-					"row":   totalMongoRows,
-					"seconds_counting_rows": time.Since(startTime).Seconds(),
+				kvLog.GaugeFloatD("processing mongo rows", time.Since(startTime).Seconds(), logger.M{
+					"table":    table,
+					"num_rows": totalMongoRows,
 				})
 			}
 			return nil
 		}))
-		kvLog.GaugeFloatD("count mongo rows", time.Since(startTime).Seconds(), logger.M{
-			"table":    table,
-			"num_rows": totalMongoRows,
-		})
 
 		// we want to split up the file for performance reasons
 		var waitGroup sync.WaitGroup
@@ -354,7 +352,6 @@ func main() {
 			// Gzip output into pipe so that we don't need to store locally
 			reader, writer := io.Pipe()
 			go func(index int) {
-				outputStartTime := time.Now()
 				zippedOutput := gzip.NewWriter(writer) // sorcery
 				sink := jsonsink.New(zippedOutput)
 				// ALWAYS close the gzip first
@@ -369,10 +366,6 @@ func main() {
 				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
 				// need to do this atomically to avoid concurrency issues
 				atomic.AddInt64(&totalSummedRows, int64(count))
-				kvLog.GaugeFloatD("output into pipe", time.Since(outputStartTime).Seconds(), logger.M{
-					"table":      table,
-					"file_index": i,
-				})
 			}(i)
 
 			// Upload file to bucket
@@ -380,18 +373,11 @@ func main() {
 			// until we hook up the reader to a sink via uploadFile
 			// can't just put without goroutine because then only one iteration of the loop gets to run
 			go func() {
-				uploadFileStartTime := time.Now()
 				defer waitGroup.Done()
 				uploadFile(reader, flags.Bucket, outputName)
-				kvLog.GaugeFloat("upload file", time.Since(uploadFileStartTime).Seconds())
 			}()
 		}
 		waitGroup.Wait()
-		kvLog.InfoD("Done writing table", logger.M{
-			"table":     table,
-			"num_rows":  totalSummedRows,
-			"num_files": numFiles,
-		})
 		if totalSummedRows != totalMongoRows {
 			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
 		}
@@ -402,8 +388,11 @@ func main() {
 			log.Fatalf("Error creating manifest: %s", err)
 		}
 		uploadFile(manifestReader, flags.Bucket, manifestFilename)
-		kvLog.InfoD("Uploaded manifest", logger.M{
-			"table": table,
+
+		kvLog.GaugeFloatD("processed table", time.Since(startTime).Seconds(), logger.M{
+			"table":     table,
+			"num_rows":  totalSummedRows,
+			"num_files": numFiles,
 		})
 	}
 
