@@ -36,7 +36,7 @@ import (
 
 var gearmanAdminURL string
 var configs map[string]string
-var kvLog = logger.New("mongo-to-s3")
+var kvLog = logger.NewWithContext("mongo-to-s3", logger.M{})
 
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
@@ -156,16 +156,20 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 
 // Given the command line inputs and the config file, choose the tables we want to push to s3
 func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.Table, error) {
+	startTime := time.Now()
 	var outTables []config.Table
 	// none specified, list all
 	if sourceInput == "" {
-		log.Println("no collections specified, emitting all in config file")
+		kvLog.Info("no collections specified, emitting all in config file")
 		for _, table := range configYaml {
 			outTables = append(outTables, table)
 		}
 	} else {
 		// else some were specified, get those in order
-		log.Printf("fetching collections specified: %s", sourceInput)
+		kvLog.InfoD("fetching collections specified", logger.M{
+			"sourceInput": sourceInput,
+		})
+
 		for _, sourceItem := range strings.Split(sourceInput, ",") {
 			curTable := config.Table{}
 			// yes n^2, but not a big deal
@@ -181,6 +185,9 @@ func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.T
 			outTables = append(outTables, curTable)
 		}
 	}
+	kvLog.GaugeFloatD("getTablesFromConfSeconds", time.Since(startTime).Seconds(), logger.M{
+		"num_tables": len(outTables),
+	})
 	return outTables, nil
 }
 
@@ -263,6 +270,10 @@ func main() {
 		log.Fatalf("err: %#v", err)
 	}
 
+	kvLog.AddContext("collections", flags.Collections)
+	kvLog.AddContext("config", flags.Name)
+	kvLog.AddContext("numFiles", flags.NumFiles)
+
 	numFiles, err := strconv.Atoi(flags.NumFiles)
 	if err != nil {
 		log.Fatal(err)
@@ -275,7 +286,7 @@ func main() {
 	}
 
 	mongoClient := mongoConnection(flags.URL)
-	log.Println("Connected to mongo")
+	kvLog.Info("Connected to mongo")
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
@@ -292,6 +303,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	kvLog.InfoD("processing tables", logger.M{
+		"num_source_tables": len(sourceTables),
+	})
+
 	outputTableNames := []string{}
 	for _, table := range sourceTables {
 		// add name to list for submitting to next step in pipeline
@@ -302,14 +318,27 @@ func main() {
 		var totalSummedRows int64
 		var totalMongoRows int64
 
+		kvLog.InfoD("configuring Optimus table", logger.M{
+			"table": table,
+		})
 		mongoSource := configuredOptimusTable(mongoClient, table)
+
+		startTime := time.Now()
 		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
 			totalMongoRows++
 			if totalMongoRows%1000000 == 0 {
-				log.Printf("Processing mongo row: %d", totalMongoRows)
+				kvLog.InfoD("processing mongo row", logger.M{
+					"table": table,
+					"row":   totalMongoRows,
+					"seconds_counting_rows": time.Since(startTime).Seconds(),
+				})
 			}
 			return nil
 		}))
+		kvLog.GaugeFloatD("count mongo rows", time.Since(startTime).Seconds(), logger.M{
+			"table":    table,
+			"num_rows": totalMongoRows,
+		})
 
 		// we want to split up the file for performance reasons
 		var waitGroup sync.WaitGroup
@@ -317,11 +346,15 @@ func main() {
 		for i := 0; i < numFiles; i++ {
 			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
 			outputFilenames = append(outputFilenames, outputName)
-			log.Printf("Outputting file number: %d to location: %s", i, outputName)
+			kvLog.InfoD("outputting file", logger.M{
+				"file_index": i,
+				"location":   outputName,
+			})
 
 			// Gzip output into pipe so that we don't need to store locally
 			reader, writer := io.Pipe()
 			go func(index int) {
+				outputStartTime := time.Now()
 				zippedOutput := gzip.NewWriter(writer) // sorcery
 				sink := jsonsink.New(zippedOutput)
 				// ALWAYS close the gzip first
@@ -336,6 +369,10 @@ func main() {
 				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
 				// need to do this atomically to avoid concurrency issues
 				atomic.AddInt64(&totalSummedRows, int64(count))
+				kvLog.GaugeFloatD("output into pipe", time.Since(outputStartTime).Seconds(), logger.M{
+					"table":      table,
+					"file_index": i,
+				})
 			}(i)
 
 			// Upload file to bucket
@@ -343,12 +380,18 @@ func main() {
 			// until we hook up the reader to a sink via uploadFile
 			// can't just put without goroutine because then only one iteration of the loop gets to run
 			go func() {
+				uploadFileStartTime := time.Now()
 				defer waitGroup.Done()
 				uploadFile(reader, flags.Bucket, outputName)
+				kvLog.GaugeFloat("upload file", time.Since(uploadFileStartTime).Seconds())
 			}()
 		}
 		waitGroup.Wait()
-		log.Printf("Output %d total rows in %d files", totalSummedRows, numFiles)
+		kvLog.InfoD("Done writing table", logger.M{
+			"table":     table,
+			"num_rows":  totalSummedRows,
+			"num_files": numFiles,
+		})
 		if totalSummedRows != totalMongoRows {
 			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
 		}
@@ -359,6 +402,9 @@ func main() {
 			log.Fatalf("Error creating manifest: %s", err)
 		}
 		uploadFile(manifestReader, flags.Bucket, manifestFilename)
+		kvLog.InfoD("Uploaded manifest", logger.M{
+			"table": table,
+		})
 	}
 
 	// submit gearman job for all tables
@@ -366,9 +412,9 @@ func main() {
 	// at the same time for different collections
 
 	if len(gearmanAdminURL) == 0 {
-		log.Println("Not posting s3-to-redshift job")
+		kvLog.Info("Not posting s3-to-redshift job")
 	} else {
-		log.Println("Submitting job to Gearman admin")
+		kvLog.Info("Submitting job to Gearman admin")
 
 		payload, err := json.Marshal(map[string]interface{}{
 			"bucket":   flags.Bucket,
