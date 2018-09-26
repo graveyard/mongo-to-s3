@@ -25,6 +25,7 @@ import (
 	"github.com/Clever/configure"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
+	"gopkg.in/Clever/kayvee-go.v6/logger"
 	"gopkg.in/Clever/optimus.v3"
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
@@ -35,6 +36,7 @@ import (
 
 var gearmanAdminURL string
 var configs map[string]string
+var kvLog = logger.New("mongo-to-s3")
 
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
