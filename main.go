@@ -129,16 +129,14 @@ func formatFilename(timestamp, collectionName, fileIndex, extension string) stri
 	return fmt.Sprintf("mongo_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
 }
 
-func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
+func exportData(source optimus.Table, sink optimus.Sink, funcs config.TransformFuncs) (int, error) {
 	defer timeTrack(time.Now(), "exportData")
 	var rows int64
-	datePopulator := config.GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
-	existentialTransformer := config.GetExistentialTransformerFn(table)
 	err := transformer.New(source).
-		Concurrently(transforms.Map(config.Flattener()), 100).
-		Concurrently(transforms.Map(existentialTransformer), 100). // convert PII to boolean exists or not
-		Concurrently(transforms.Fieldmap(table.FieldMap()), 100).
-		Concurrently(transforms.Map(datePopulator), 100). // add in the _data_timestamp, etc
+		Concurrently(funcs.Flatten, 100).
+		Concurrently(funcs.ConvertPII, 100). // convert PII to boolean exists or not
+		Concurrently(funcs.MapFields, 100).
+		Concurrently(funcs.PopulateDates, 100). // add in the _data_timestamp, etc
 		Concurrently(transforms.Map(func(d optimus.Row) (optimus.Row, error) {
 			atomic.AddInt64(&rows, 1)
 			return d, nil
@@ -340,6 +338,8 @@ func main() {
 			return nil
 		}))
 
+		transformFuncs := config.GetTransformFuncs(table, timestamp)
+
 		// we want to split up the file for performance reasons
 		var waitGroup sync.WaitGroup
 		waitGroup.Add(numFiles)
@@ -361,7 +361,7 @@ func main() {
 				defer writer.Close()
 				defer zippedOutput.Close()
 
-				count, err := exportData(mongoSource, table, sink, timestamp)
+				count, err := exportData(mongoSource, sink, transformFuncs)
 				if err != nil {
 					log.Fatal("err reading table: ", err)
 				}

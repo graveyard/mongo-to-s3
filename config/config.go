@@ -7,6 +7,7 @@ import (
 
 	"gopkg.in/Clever/kayvee-go.v6/logger"
 	"gopkg.in/Clever/optimus.v3"
+	"gopkg.in/Clever/optimus.v3/transforms"
 	"gopkg.in/yaml.v2"
 )
 
@@ -35,6 +36,27 @@ type Field struct {
 type Meta struct {
 	Database       string `yaml:"database"`
 	DataDateColumn string `yaml:"datadatecolumn"`
+}
+
+type TransformFuncs struct {
+	Flatten       optimus.TransformFunc
+	ConvertPII    optimus.TransformFunc
+	MapFields     optimus.TransformFunc
+	PopulateDates optimus.TransformFunc
+}
+
+func GetTransformFuncs(table Table, timestamp string) TransformFuncs {
+	flattener := Flattener()
+	existentialTransformer := GetExistentialTransformerFn(table)
+	fieldMap := table.FieldMap()
+	datePopulator := GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
+
+	return TransformFuncs{
+		Flatten:       transforms.Map(flattener),
+		ConvertPII:    transforms.Map(existentialTransformer),
+		MapFields:     transforms.Fieldmap(fieldMap),
+		PopulateDates: transforms.Map(datePopulator),
+	}
 }
 
 // ParseYAML marshalls data into a Config
