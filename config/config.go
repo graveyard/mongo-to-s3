@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Clever/kayvee-go/logger"
+	"gopkg.in/Clever/kayvee-go.v6/logger"
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
 )
@@ -63,11 +63,11 @@ func (t Table) FieldMap() map[string][]string {
 // GetPopulateDateFn returns a function which creates and populates the data date column
 // we do this so that we have a good idea of when the data was created downstream
 func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
-	totalRows := 0
-	totalTime := 0
+	var totalRows int
+	var totalTime float64
 
 	return func(r optimus.Row) (optimus.Row, error) {
-		startTime = time.Now()
+		startTime := time.Now()
 
 		r[dataDateColumn] = timestamp
 
@@ -76,7 +76,7 @@ func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (opti
 
 		if totalRows%1000000 == 0 {
 			kvLog.GaugeFloatD("populate data date column", totalTime, logger.M{
-				"num_rows": totalRows
+				"num_rows": totalRows,
 			})
 		}
 
@@ -87,11 +87,11 @@ func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (opti
 // GetExistentialTransformerFn returns a function which turns a PII field into a boolean
 // whether it exists or not. Runs before the field map.
 func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error) {
-	totalRows := 0
-	totalTime := 0
+	var totalRows int
+	var totalTime float64
 
 	return func(r optimus.Row) (optimus.Row, error) {
-		startTime = time.Now()
+		startTime := time.Now()
 
 		for _, field := range t.Fields {
 			if field.PII {
@@ -109,7 +109,7 @@ func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error)
 
 		if totalRows%1000000 == 0 {
 			kvLog.GaugeFloatD("transform PII fields", totalTime, logger.M{
-				"num_rows": totalRows
+				"num_rows": totalRows,
 			})
 		}
 
@@ -124,11 +124,11 @@ func IsZeroOfUnderlyingType(x interface{}) bool {
 // Flattener returns a function which flattens nested optimus rows into flat rows
 // with dot-separated keys
 func Flattener() func(optimus.Row) (optimus.Row, error) {
-	totalRows := 0
-	totalTime := 0
+	var totalRows int
+	var totalTime float64
 
 	return func(r optimus.Row) (optimus.Row, error) {
-		startTime = time.Now()
+		startTime := time.Now()
 
 		outRow := optimus.Row{}
 		flatten(r, "", &outRow)
@@ -138,7 +138,7 @@ func Flattener() func(optimus.Row) (optimus.Row, error) {
 
 		if totalRows%1000000 == 0 {
 			kvLog.GaugeFloatD("flatten nested rows", totalTime, logger.M{
-				"num_rows": totalRows
+				"num_rows": totalRows,
 			})
 		}
 		return outRow, nil
