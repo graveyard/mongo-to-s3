@@ -2,10 +2,20 @@ package config
 
 import (
 	"encoding/json"
+	"reflect"
+	"time"
+
+	"github.com/Clever/kayvee-go/logger"
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
-	"reflect"
 )
+
+var kvLog = logger.NewWithContext("mongo-to-s3", logger.M{})
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start).Seconds()
+	kvLog.GaugeFloat(name, elapsed)
+}
 
 type Config map[string]Table
 
@@ -29,6 +39,7 @@ type Meta struct {
 
 // ParseYAML marshalls data into a Config
 func ParseYAML(data []byte) (Config, error) {
+	defer timeTrack(time.Now(), "parse YAML")
 	config := Config{}
 	err := yaml.Unmarshal(data, &config)
 	return config, err
@@ -36,6 +47,7 @@ func ParseYAML(data []byte) (Config, error) {
 
 // FieldMap returns a mapping of all fields between source and destination
 func (t Table) FieldMap() map[string][]string {
+	defer timeTrack(time.Now(), "field map")
 	mappings := make(map[string][]string)
 
 	for _, field := range t.Fields {
@@ -51,8 +63,23 @@ func (t Table) FieldMap() map[string][]string {
 // GetPopulateDateFn returns a function which creates and populates the data date column
 // we do this so that we have a good idea of when the data was created downstream
 func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (optimus.Row, error) {
+	totalRows := 0
+	totalTime := 0
+
 	return func(r optimus.Row) (optimus.Row, error) {
+		startTime = time.Now()
+
 		r[dataDateColumn] = timestamp
+
+		totalRows++
+		totalTime += time.Since(startTime).Seconds()
+
+		if totalRows%1000000 == 0 {
+			kvLog.GaugeFloatD("populate data date column", totalTime, logger.M{
+				"num_rows": totalRows
+			})
+		}
+
 		return r, nil
 	}
 }
@@ -60,7 +87,12 @@ func GetPopulateDateFn(dataDateColumn, timestamp string) func(optimus.Row) (opti
 // GetExistentialTransformerFn returns a function which turns a PII field into a boolean
 // whether it exists or not. Runs before the field map.
 func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error) {
+	totalRows := 0
+	totalTime := 0
+
 	return func(r optimus.Row) (optimus.Row, error) {
+		startTime = time.Now()
+
 		for _, field := range t.Fields {
 			if field.PII {
 				val, ok := r[field.Source]
@@ -71,6 +103,16 @@ func GetExistentialTransformerFn(t Table) func(optimus.Row) (optimus.Row, error)
 				}
 			}
 		}
+
+		totalRows++
+		totalTime += time.Since(startTime).Seconds()
+
+		if totalRows%1000000 == 0 {
+			kvLog.GaugeFloatD("transform PII fields", totalTime, logger.M{
+				"num_rows": totalRows
+			})
+		}
+
 		return r, nil
 	}
 }
@@ -82,9 +124,23 @@ func IsZeroOfUnderlyingType(x interface{}) bool {
 // Flattener returns a function which flattens nested optimus rows into flat rows
 // with dot-separated keys
 func Flattener() func(optimus.Row) (optimus.Row, error) {
+	totalRows := 0
+	totalTime := 0
+
 	return func(r optimus.Row) (optimus.Row, error) {
+		startTime = time.Now()
+
 		outRow := optimus.Row{}
 		flatten(r, "", &outRow)
+
+		totalRows++
+		totalTime += time.Since(startTime).Seconds()
+
+		if totalRows%1000000 == 0 {
+			kvLog.GaugeFloatD("flatten nested rows", totalTime, logger.M{
+				"num_rows": totalRows
+			})
+		}
 		return outRow, nil
 	}
 }
