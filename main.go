@@ -131,18 +131,20 @@ func formatFilename(timestamp, collectionName, fileIndex, extension string) stri
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
 	defer timeTrack(time.Now(), "exportData")
-	rows := 0
+	var rows int64
 	datePopulator := config.GetPopulateDateFn(table.Meta.DataDateColumn, timestamp)
 	existentialTransformer := config.GetExistentialTransformerFn(table)
-	err := transformer.New(source).Map(config.Flattener()).
-		Map(existentialTransformer). // convert PII to boolean exists or not
-		Fieldmap(table.FieldMap()).
-		Map(datePopulator). // add in the _data_timestamp, etc
-		Map(func(d optimus.Row) (optimus.Row, error) {
-			rows = rows + 1
+	err := transformer.New(source).
+		Concurrently(transforms.Map(config.Flattener()), 100).
+		Concurrently(transforms.Map(existentialTransformer), 100). // convert PII to boolean exists or not
+		Concurrently(transforms.Fieldmap(table.FieldMap()), 100).
+		Concurrently(transforms.Map(datePopulator), 100). // add in the _data_timestamp, etc
+		Concurrently(transforms.Map(func(d optimus.Row) (optimus.Row, error) {
+			atomic.AddInt64(&rows, 1)
 			return d, nil
-		}).Sink(sink)
-	return rows, err
+		}), 100).
+		Sink(sink)
+	return int(rows), err
 }
 
 func copyConfigFile(bucket, timestamp, data, configName string) string {
