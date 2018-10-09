@@ -28,3 +28,8 @@ aws:
   managed:
     clever:
     - Workflows
+autoscaling:
+  metric: cpu
+  metric_target: 70
+  min_count: 2
+  max_count: 6
