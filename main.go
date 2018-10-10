@@ -30,6 +30,7 @@ import (
 	"gopkg.in/Clever/optimus.v3/transformer"
 	"gopkg.in/Clever/optimus.v3/transforms"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var configs map[string]string
@@ -103,8 +104,14 @@ func parseConfigString(conf string) config.Config {
 }
 
 func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
+	// Create a projection to only pull the fields we're interested in
+	fields := bson.M{}
+	for _, f := range table.Fields {
+		fields[f.Source] = true
+	}
+
 	collection := s.DB("").C(table.Source)
-	iter := collection.Find(nil).Iter()
+	iter := collection.Find(nil).Select(fields).Iter()
 	return mongosource.New(iter)
 }
 
