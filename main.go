@@ -8,10 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,7 +31,6 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
-var gearmanAdminURL string
 var configs map[string]string
 
 // getEnv looks up an environment variable given and exits if it does not exist.
@@ -59,10 +56,6 @@ func generateServiceEndpoint(user, pass, path string) string {
 }
 
 func init() {
-	gearmanAdminUser := getEnv("GEARMAN_ADMIN_USER")
-	gearmanAdminPass := getEnv("GEARMAN_ADMIN_PASS")
-	gearmanAdminPath := getEnv("GEARMAN_ADMIN_PATH")
-	gearmanAdminURL = generateServiceEndpoint(gearmanAdminUser, gearmanAdminPass, gearmanAdminPath)
 	configs = map[string]string{
 		"il":      getEnv("IL_CONFIG"),
 		"sis":     getEnv("SIS_CONFIG"),
@@ -153,33 +146,25 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 }
 
 // Given the command line inputs and the config file, choose the tables we want to push to s3
-func getTablesFromConf(sourceInput string, configYaml config.Config) ([]config.Table, error) {
-	var outTables []config.Table
-	// none specified, list all
+func getTableFromConf(sourceInput string, configYaml config.Config) (config.Table, error) {
+	// none specified, throw error
 	if sourceInput == "" {
-		log.Println("no collections specified, emitting all in config file")
-		for _, table := range configYaml {
-			outTables = append(outTables, table)
-		}
-	} else {
-		// else some were specified, get those in order
-		log.Printf("fetching collections specified: %s", sourceInput)
-		for _, sourceItem := range strings.Split(sourceInput, ",") {
-			curTable := config.Table{}
-			// yes n^2, but not a big deal
-			for _, table := range configYaml {
-				if sourceItem == table.Source {
-					curTable = table
-				}
-			}
-			// if not set, yell
-			if curTable.Destination == "" {
-				return outTables, fmt.Errorf("Could not find source table: %s in config", sourceItem)
-			}
-			outTables = append(outTables, curTable)
+		log.Println("no collection specified, throwing error")
+		return config.Table{}, fmt.Errorf("No collection specified")
+	}
+	// collection was specified, get the right one
+	log.Printf("fetching collection specified: %s", sourceInput)
+	curTable := config.Table{}
+	for _, table := range configYaml {
+		if sourceInput == table.Source {
+			curTable = table
 		}
 	}
-	return outTables, nil
+	// if not set, yell
+	if curTable.Destination == "" {
+		return config.Table{}, fmt.Errorf("Could not find source table: %s in config", sourceInput)
+	}
+	return curTable, nil
 }
 
 // uploadFile handles the awkwardness around s3 regions to upload the file
@@ -245,17 +230,17 @@ func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 
 func main() {
 	flags := struct {
-		Name        string `config:"config"`
-		Collections string `config:"collections"`
-		URL         string `config:"database"`
-		Bucket      string `config:"bucket"`
-		NumFiles    string `config:"numfiles"` // configure library doesn't support ints or floats
+		Name       string `config:"config"`
+		Collection string `config:"collection"`
+		URL        string `config:"database"`
+		Bucket     string `config:"bucket"`
+		NumFiles   string `config:"numfiles"` // configure library doesn't support ints or floats
 	}{ // specifying default values:
-		Name:        "",
-		Collections: "",
-		URL:         "",
-		Bucket:      "TODO",
-		NumFiles:    "1",
+		Name:       "",
+		Collection: "",
+		URL:        "",
+		Bucket:     "TODO",
+		NumFiles:   "1",
 	}
 	if err := configure.Configure(&flags); err != nil {
 		log.Fatalf("err: %#v", err)
@@ -286,111 +271,97 @@ func main() {
 	}
 	configYaml := parseConfigString(c)
 	confFileName := copyConfigFile(flags.Bucket, timestamp, c, flags.Name)
-	sourceTables, err := getTablesFromConf(flags.Collections, configYaml)
+	sourceTable, err := getTableFromConf(flags.Collection, configYaml)
 	if err != nil {
 		log.Fatal(err)
 	}
-	outputTableNames := []string{}
-	for _, table := range sourceTables {
-		// add name to list for submitting to next step in pipeline
-		outputTableNames = append(outputTableNames, table.Destination)
-		outputFilenames := []string{}
 
-		// verify total rows match sum of written
-		var totalSummedRows int64
-		var totalMongoRows int64
+	// add name to list for submitting to next step in pipeline
+	outputTableName := sourceTable.Destination
+	outputFilenames := []string{}
 
-		mongoSource := configuredOptimusTable(mongoClient, table)
-		mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
-			totalMongoRows++
-			if totalMongoRows%1000000 == 0 {
-				log.Printf("Processing mongo row: %d", totalMongoRows)
+	// verify total rows match sum of written
+	var totalSummedRows int64
+	var totalMongoRows int64
+
+	mongoSource := configuredOptimusTable(mongoClient, sourceTable)
+	mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
+		totalMongoRows++
+		if totalMongoRows%1000000 == 0 {
+			log.Printf("Processing mongo row: %d", totalMongoRows)
+		}
+		return nil
+	}))
+
+	// we want to split up the file for performance reasons
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(numFiles)
+	for i := 0; i < numFiles; i++ {
+		outputName := formatFilename(timestamp, sourceTable.Destination, strconv.Itoa(i), ".json.gz")
+		outputFilenames = append(outputFilenames, outputName)
+		log.Printf("Outputting file number: %d to location: %s", i, outputName)
+
+		// Gzip output into pipe so that we don't need to store locally
+		reader, writer := io.Pipe()
+		go func(index int) {
+			zippedOutput := gzip.NewWriter(writer) // sorcery
+			sink := jsonsink.New(zippedOutput)
+			// ALWAYS close the gzip first
+			// (defer does LIFO)
+			defer writer.Close()
+			defer zippedOutput.Close()
+
+			count, err := exportData(mongoSource, sourceTable, sink, timestamp)
+			if err != nil {
+				log.Fatal("err reading table: ", err)
 			}
-			return nil
-		}))
+			log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", sourceTable.Destination, count, index)
+			// need to do this atomically to avoid concurrency issues
+			atomic.AddInt64(&totalSummedRows, int64(count))
+		}(i)
 
-		// we want to split up the file for performance reasons
-		var waitGroup sync.WaitGroup
-		waitGroup.Add(numFiles)
-		for i := 0; i < numFiles; i++ {
-			outputName := formatFilename(timestamp, table.Destination, strconv.Itoa(i), ".json.gz")
-			outputFilenames = append(outputFilenames, outputName)
-			log.Printf("Outputting file number: %d to location: %s", i, outputName)
-
-			// Gzip output into pipe so that we don't need to store locally
-			reader, writer := io.Pipe()
-			go func(index int) {
-				zippedOutput := gzip.NewWriter(writer) // sorcery
-				sink := jsonsink.New(zippedOutput)
-				// ALWAYS close the gzip first
-				// (defer does LIFO)
-				defer writer.Close()
-				defer zippedOutput.Close()
-
-				count, err := exportData(mongoSource, table, sink, timestamp)
-				if err != nil {
-					log.Fatal("err reading table: ", err)
-				}
-				log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", table.Destination, count, index)
-				// need to do this atomically to avoid concurrency issues
-				atomic.AddInt64(&totalSummedRows, int64(count))
-			}(i)
-
-			// Upload file to bucket
-			// need to put in own goroutine to kick off because exportData can't start and the reader can't close
-			// until we hook up the reader to a sink via uploadFile
-			// can't just put without goroutine because then only one iteration of the loop gets to run
-			go func() {
-				defer waitGroup.Done()
-				uploadFile(reader, flags.Bucket, outputName)
-			}()
-		}
-		waitGroup.Wait()
-		log.Printf("Output %d total rows in %d files", totalSummedRows, numFiles)
-		if totalSummedRows != totalMongoRows {
-			log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
-		}
-		// we always upload a manifest including the files we just created
-		manifestFilename := formatFilename(timestamp, table.Destination, "", ".manifest")
-		manifestReader, err := createManifest(flags.Bucket, outputFilenames)
-		if err != nil {
-			log.Fatalf("Error creating manifest: %s", err)
-		}
-		uploadFile(manifestReader, flags.Bucket, manifestFilename)
+		// Upload file to bucket
+		// need to put in own goroutine to kick off because exportData can't start and the reader can't close
+		// until we hook up the reader to a sink via uploadFile
+		// can't just put without goroutine because then only one iteration of the loop gets to run
+		go func() {
+			defer waitGroup.Done()
+			uploadFile(reader, flags.Bucket, outputName)
+		}()
 	}
+	waitGroup.Wait()
+	log.Printf("Output %d total rows in %d files", totalSummedRows, numFiles)
+	if totalSummedRows != totalMongoRows {
+		log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
+	}
+	// we always upload a manifest including the files we just created
+	manifestFilename := formatFilename(timestamp, sourceTable.Destination, "", ".manifest")
+	manifestReader, err := createManifest(flags.Bucket, outputFilenames)
+	if err != nil {
+		log.Fatalf("Error creating manifest: %s", err)
+	}
+	uploadFile(manifestReader, flags.Bucket, manifestFilename)
 
-	// submit gearman job for all tables
+	// print payload for all tables
 	// doing this all at the end to ensure that the data in redshift is updated
 	// at the same time for different collections
 
-	if len(gearmanAdminURL) == 0 {
-		log.Println("Not posting s3-to-redshift job")
-	} else {
-		log.Println("Submitting job to Gearman admin")
+	log.Println("Printing payload")
+	payload, err := json.Marshal(map[string]interface{}{
+		"bucket":   flags.Bucket,
+		"schema":   "mongo",
+		"tables":   outputTableName,
+		"truncate": true,
+		"config":   confFileName,
+		"date":     timestamp,
+	})
+	if err != nil {
+		log.Fatalf("Error creating new payload: %s", err)
+	}
 
-		payload, err := json.Marshal(map[string]interface{}{
-			"bucket":   flags.Bucket,
-			"schema":   "mongo",
-			"tables":   strings.Join(outputTableNames, ","),
-			"truncate": true,
-			"config":   confFileName,
-			"date":     timestamp,
-		})
-		if err != nil {
-			log.Fatalf("Error creating new payload: %s", err)
-		}
-
-		client := &http.Client{}
-		endpoint := gearmanAdminURL + "/s3-to-redshift"
-		req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
-		if err != nil {
-			log.Fatalf("Error creating new request: %s", err)
-		}
-		req.Header.Add("Content-Type", "application/json")
-		_, err = client.Do(req)
-		if err != nil {
-			log.Fatalf("Error submitting job:%s", err)
-		}
+	_, err = fmt.Println(string(payload))
+	if err != nil {
+		log.Fatalf("Error printing result: %s", err)
 	}
 }
 

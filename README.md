@@ -1,12 +1,12 @@
 # mongo-to-s3
-Exports whitelisted `mongo` fields to an `s3` bucket, kicking off an `s3-to-redshift` job at the end of the run.
+Exports whitelisted `mongo` fields to an `s3` bucket.
  
 ## Usage:
 ```
   -config string
         String corresponding to an env var config
-  -collections string
-        Comma-separated strings corresponding to the mongo collections you wish to pull from. Empty or not set pulls all collections included in the conf file. (default: "")
+  -collection string
+        The mongo collection you wish to pull from (required)
   -database string
         Database url if using existing instance (required)
   -bucket string
@@ -24,7 +24,8 @@ Exports whitelisted `mongo` fields to an `s3` bucket, kicking off an `s3-to-reds
   - pulls the whitelisted fields from mongo
   - flattens objects into dot-separated fields
   - streams to gzipped, timestamped JSON files on s3
-5. kicks off an [s3-to-redshift](https://github.com/Clever/s3-to-redshift) job to process this data
+5. prints the payload to be used in a [s3-to-redshift](https://github.com/Clever/s3-to-redshift) job to process this data
+  - the job is kickstarted automatically by a workflow
 
 Right now, `mongo-to-s3` will attempt export all fields/tables in the `X_config.yml` whitelist which it's called with.
 
@@ -80,4 +81,4 @@ It should be easy to add more, however.
 
 5) You may want to think about issues if some data arrives sooner than other data to the data warehouse. For instance, suppose item A is only "active" if an item B exists in the database and points to A. If you've synched over A significantly before B, it may appear that A is 'inactive' until B is synched over. In reality, A has always been 'active'.
 
-6) While you pass *collections* to run on as parameters to `mongo-to-s3`, this worker will post jobs to `s3-to-redshft` with the *destination table* names as parameters.
+6) While you pass *collections* to run on as parameters to `mongo-to-s3`, the eventual `s3-to-redshft` job will post with the *destination table* names as parameters.
