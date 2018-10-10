@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,6 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 
+	json "github.com/pquerna/ffjson/ffjson"
+
 	"github.com/Clever/configure"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
@@ -29,6 +30,7 @@ import (
 	"gopkg.in/Clever/optimus.v3/transformer"
 	"gopkg.in/Clever/optimus.v3/transforms"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var configs map[string]string
@@ -102,8 +104,14 @@ func parseConfigString(conf string) config.Config {
 }
 
 func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
+	// Create a projection to only pull the fields we're interested in
+	fields := bson.M{}
+	for _, f := range table.Fields {
+		fields[f.Source] = true
+	}
+
 	collection := s.DB("").C(table.Source)
-	iter := collection.Find(nil).Iter()
+	iter := collection.Find(nil).Batch(1000).Prefetch(0.25).Select(fields).Iter()
 	return mongosource.New(iter)
 }
 
@@ -304,7 +312,11 @@ func main() {
 		// Gzip output into pipe so that we don't need to store locally
 		reader, writer := io.Pipe()
 		go func(index int) {
-			zippedOutput := gzip.NewWriter(writer) // sorcery
+			zippedOutput, _ := gzip.NewWriterLevel(writer, gzip.BestSpeed) // sorcery
+			if err != nil {
+				log.Fatal("invalid compression level: ", err)
+			}
+
 			sink := jsonsink.New(zippedOutput)
 			// ALWAYS close the gzip first
 			// (defer does LIFO)

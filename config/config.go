@@ -1,7 +1,8 @@
 package config
 
 import (
-	"encoding/json"
+	json "github.com/pquerna/ffjson/ffjson"
+
 	"gopkg.in/Clever/optimus.v3"
 	"gopkg.in/yaml.v2"
 	"reflect"
