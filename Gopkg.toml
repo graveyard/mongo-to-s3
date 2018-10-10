@@ -29,3 +29,7 @@
 [[override]]
   name = "gopkg.in/fatih/set.v0"
   version = "v0.1.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/pquerna/ffjson"
