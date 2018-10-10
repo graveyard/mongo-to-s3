@@ -28,11 +28,7 @@ build: bin/sfncli
 	$(call golang-build,$(PKG),$(EXECUTABLE))
 
 run: build
-	bin/sfncli --activityname $(_DEPLOY_ENV)--$(_APP_NAME) \
-		--region us-west-2 \
-		--cloudwatchregion us-west-1 \
-		--workername `hostname` \
-		--cmd bin/$(EXECUTABLE)
+	bin/$(EXECUTABLE) '$(PAYLOAD)'
 
 $(PKGS): golang-test-all-deps
 	$(call golang-test-all,$@)
