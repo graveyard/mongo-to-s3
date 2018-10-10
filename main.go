@@ -305,7 +305,11 @@ func main() {
 		// Gzip output into pipe so that we don't need to store locally
 		reader, writer := io.Pipe()
 		go func(index int) {
-			zippedOutput := gzip.NewWriter(writer) // sorcery
+			zippedOutput, _ := gzip.NewWriterLevel(writer, gzip.BestSpeed) // sorcery
+			if err != nil {
+				log.Fatal("invalid compression level: ", err)
+			}
+
 			sink := jsonsink.New(zippedOutput)
 			// ALWAYS close the gzip first
 			// (defer does LIFO)
