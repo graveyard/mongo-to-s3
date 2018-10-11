@@ -26,6 +26,12 @@ type Field struct {
 type Meta struct {
 	Database       string `yaml:"database"`
 	DataDateColumn string `yaml:"datadatecolumn"`
+	// UseProjectionOptimization makes the query more efficient by only requesting the
+	// listed fields. However, note that if there are reused fields
+	// (e.g. data.name and data.name.first) then the parent one will not be complete/included
+	// if there are other fields in it. This breaks things like oauthclients and launchpads,
+	// so we can't turn it on for everything
+	UseProjectionOptimization bool `yaml:"projection_optimization"`
 }
 
 // ParseYAML marshalls data into a Config
