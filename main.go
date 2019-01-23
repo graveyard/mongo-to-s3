@@ -21,9 +21,9 @@ import (
 
 	json "github.com/pquerna/ffjson/ffjson"
 
-	"github.com/Clever/configure"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
+	"github.com/Clever/worker-util/analyticspipeline"
 	"gopkg.in/Clever/optimus.v3"
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
@@ -252,9 +252,12 @@ func main() {
 		Bucket:     "TODO",
 		NumFiles:   "1",
 	}
-	if err := configure.Configure(&flags); err != nil {
+
+	nextPayload, err := analyticspipeline.AnalyticsWorker(&flags)
+	if err != nil {
 		log.Fatalf("err: %#v", err)
 	}
+	defer analyticspipeline.PrintPayload(nextPayload)
 
 	numFiles, err := strconv.Atoi(flags.NumFiles)
 	if err != nil {
