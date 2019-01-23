@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/Clever/analytics-util"
+  packages = ["analyticspipeline"]
+  revision = "204e4231ba9909d8165707e18302c1652b11ec76"
+  version = "1.0.0"
+
+[[projects]]
   name = "github.com/Clever/discovery-go"
   packages = ["."]
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
@@ -10,12 +16,6 @@
   name = "github.com/Clever/pathio"
   packages = ["."]
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
-
-[[projects]]
-  name = "github.com/Clever/worker-util"
-  packages = ["analyticspipeline"]
-  revision = "5c91ea643bff3031a8981da4c7d6aaf7bf5f40ef"
-  version = "5.16.1"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -131,6 +131,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "87335a4bd45485c25562364d9a0a2640144e9712c7934f0fde979049aa4e697d"
+  inputs-digest = "0f016a9dbf2c3c941baa24689e802ca963809dc0e822870b5e378754799c120f"
   solver-name = "gps-cdcl"
   solver-version = 1

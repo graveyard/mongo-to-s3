@@ -21,9 +21,9 @@ import (
 
 	json "github.com/pquerna/ffjson/ffjson"
 
+	"github.com/Clever/analytics-util/analyticspipeline"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
-	"github.com/Clever/worker-util/analyticspipeline"
 	"gopkg.in/Clever/optimus.v3"
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
 	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
