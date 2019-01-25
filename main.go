@@ -257,7 +257,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("err: %#v", err)
 	}
-	defer analyticspipeline.PrintPayload(nextPayload)
 
 	numFiles, err := strconv.Atoi(flags.NumFiles)
 	if err != nil {
@@ -359,27 +358,11 @@ func main() {
 	}
 	uploadFile(manifestReader, flags.Bucket, manifestFilename)
 
-	// print payload for all tables
-	// doing this all at the end to ensure that the data in redshift is updated
-	// at the same time for different collections
+	nextPayload.Current["tables"] = outputTableName
+	nextPayload.Current["config"] = confFileName
+	nextPayload.Current["date"] = timestamp
 
-	log.Println("Printing payload")
-	payload, err := json.Marshal(map[string]interface{}{
-		"bucket":   flags.Bucket,
-		"schema":   "mongo",
-		"tables":   outputTableName,
-		"truncate": true,
-		"config":   confFileName,
-		"date":     timestamp,
-	})
-	if err != nil {
-		log.Fatalf("Error creating new payload: %s", err)
-	}
-
-	_, err = fmt.Println(string(payload))
-	if err != nil {
-		log.Fatalf("Error printing result: %s", err)
-	}
+	analyticspipeline.PrintPayload(nextPayload)
 }
 
 // getRegionForBucket looks up the region name for the given bucket
