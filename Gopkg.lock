@@ -2,9 +2,9 @@
 
 
 [[projects]]
-  name = "github.com/Clever/configure"
-  packages = ["."]
-  revision = "e62cf1715b47d2ea5f09b5c8f04facecfdedcaf2"
+  name = "github.com/Clever/analytics-util"
+  packages = ["analyticspipeline"]
+  revision = "204e4231ba9909d8165707e18302c1652b11ec76"
   version = "1.0.0"
 
 [[projects]]
@@ -131,6 +131,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "23adf6fe76c5b715d5a9086387f1208abcd5db836341cbd5c834b1487980bb50"
+  inputs-digest = "0f016a9dbf2c3c941baa24689e802ca963809dc0e822870b5e378754799c120f"
   solver-name = "gps-cdcl"
   solver-version = 1
