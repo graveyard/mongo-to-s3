@@ -4,6 +4,7 @@ env:
 - IL_CONFIG
 - SIS_CONFIG
 - APP_SIS_CONFIG
+- LEGACY_CONFIG
 resources:
   cpu: 0.01
   soft_mem_limit: 0.8
