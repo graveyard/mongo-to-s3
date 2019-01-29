@@ -22,6 +22,7 @@ export GEARMAN_ADMIN_PATH?=x
 export IL_CONFIG?=x
 export SIS_CONFIG?=x
 export APP_SIS_CONFIG?=x
+export LEGACY_CONFIG?=x
 test: $(PKGS)
 
 build: bin/sfncli

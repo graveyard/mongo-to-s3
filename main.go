@@ -62,6 +62,7 @@ func init() {
 		"il":      getEnv("IL_CONFIG"),
 		"sis":     getEnv("SIS_CONFIG"),
 		"app_sis": getEnv("APP_SIS_CONFIG"),
+		"legacy":  getEnv("LEGACY_CONFIG"),
 	}
 }
 
