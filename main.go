@@ -127,7 +127,7 @@ func formatFilename(timestamp, collectionName, fileIndex, extension string) stri
 	filePath := fmt.Sprintf("mongo/%s/_data_timestamp_year=%02d/_data_timestamp_month=%02d/_data_timestamp_day=%02d/",
 		collectionName, t.Year(), int(t.Month()), t.Day())
 	fileName := fmt.Sprintf("mongo_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
-	return fileName + filePath
+	return filePath + fileName
 }
 
 func exportData(source optimus.Table, table config.Table, sink optimus.Sink, timestamp string) (int, error) {
