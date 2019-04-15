@@ -245,13 +245,11 @@ func main() {
 	flags := struct {
 		Name       string `config:"config"`
 		Collection string `config:"collection"`
-		URL        string `config:"database"`
 		Bucket     string `config:"bucket"`
 		NumFiles   string `config:"numfiles"` // configure library doesn't support ints or floats
 	}{ // specifying default values:
 		Name:       "",
 		Collection: "",
-		URL:        "",
 		Bucket:     "TODO",
 		NumFiles:   "1",
 	}
@@ -268,12 +266,6 @@ func main() {
 	if numFiles < 1 {
 		log.Fatal("Must specify a number of output file parts >= 1")
 	}
-	if flags.URL == "" {
-		log.Fatal("Database url of existing instance is necessary")
-	}
-
-	mongoClient := mongoConnection(flags.URL)
-	log.Println("Connected to mongo")
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
@@ -287,6 +279,13 @@ func main() {
 	sourceTable, err := getTableFromConf(flags.Collection, configYaml)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	mongoClient, err := mongoConnection(configYaml.URL, configYaml.User, configYaml.Password)
+	if err != nil {
+		log.Println("Connected to mongo")
+	} else {
+		log.Fatal("Could not connect to mongo")
 	}
 
 	// add name to list for submitting to next step in pipeline
