@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -73,25 +72,6 @@ func mongoConnection(url string) *mgo.Session {
 	}
 	s.SetMode(mgo.Monotonic, true)
 	return s
-}
-
-// parseConfigFile loads the config from wherever it is, then parses it
-func parseConfigFile(path string) config.Config {
-	reader, err := pathio.Reader(path)
-	defer reader.Close()
-	if err != nil {
-		log.Fatal("err opening config file: ", err)
-	}
-	data, err := ioutil.ReadAll(reader)
-	if err != nil {
-		log.Fatal("err reading file: ", err)
-	}
-	configYaml, err := config.ParseYAML(data)
-	if err != nil {
-		log.Fatal("err parsing config file: ", err)
-	}
-
-	return configYaml
 }
 
 // parseConfigString takes in a config from an env var
@@ -279,8 +259,6 @@ func main() {
 
 	// Times are rounded down to the nearest hour
 	timestamp := time.Now().UTC().Add(-1 * time.Hour / 2).Round(time.Hour).Format(time.RFC3339)
-
-	//configYaml := parseConfigFile(flags.ConfigPath)
 
 	c, ok := configs[flags.Name]
 	if !ok {
