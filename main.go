@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -65,13 +67,29 @@ func init() {
 	}
 }
 
-func mongoConnection(url string) *mgo.Session {
-	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
+func mongoConnection(url string, username string, password string) (*mgo.Session, error) {
+	dialInfo, err := mgo.ParseURL(url)
 	if err != nil {
-		log.Fatal("err connecting to mongo instance: ", err)
+		return nil, err
 	}
-	s.SetMode(mgo.Monotonic, true)
-	return s
+
+	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
+		return tls.Dial("tcp", addr.String(), &tls.Config{})
+	}
+	if username != "" {
+		dialInfo.Username = username
+		if password != "" {
+			dialInfo.Password = password
+		}
+	}
+
+	session, err := mgo.DialWithInfo(dialInfo)
+	if err != nil {
+		return nil, err
+	}
+	session.SetMode(mgo.Monotonic, true)
+
+	return session, nil
 }
 
 // parseConfigString takes in a config from an env var
