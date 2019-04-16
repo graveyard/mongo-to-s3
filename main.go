@@ -283,10 +283,9 @@ func main() {
 
 	mongoClient, err := mongoConnection(configYaml.URL, configYaml.User, configYaml.Password)
 	if err != nil {
-		log.Println("Connected to mongo")
-	} else {
-		log.Fatal("Could not connect to mongo")
+		log.Fatal("Could not connect to mongo: ", err)
 	}
+	log.Println("Connected to mongo")
 
 	// add name to list for submitting to next step in pipeline
 	outputTableName := sourceTable.Destination
