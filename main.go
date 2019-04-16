@@ -87,7 +87,7 @@ func mongoConnection(url string, username string, password string) (*mgo.Session
 	if err != nil {
 		return nil, err
 	}
-	session.SetMode(mgo.Monotonic, true)
+	session.SetMode(mgo.Secondary, true)
 
 	return session, nil
 }
