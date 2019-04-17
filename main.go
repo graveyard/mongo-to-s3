@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"gopkg.in/Clever/kayvee-go.v6/logger"
 
 	json "github.com/pquerna/ffjson/ffjson"
 
@@ -35,6 +35,7 @@ import (
 )
 
 var (
+	log            = logger.New("mongo-to-s3")
 	configs        map[string]string
 	mongoURLs      map[string]string
 	mongoUsernames map[string]string
@@ -45,7 +46,8 @@ var (
 func getEnv(envVar string) string {
 	val := os.Getenv(envVar)
 	if val == "" {
-		log.Fatalf("Must specify env variable %s", envVar)
+		log.ErrorD("env-variable-not-specified-error", logger.M{"variable": envVar})
+		os.Exit(1)
 	}
 	return val
 }
@@ -53,11 +55,13 @@ func getEnv(envVar string) string {
 func generateServiceEndpoint(user, pass, path string) string {
 	hostPort, err := discovery.HostPort("gearman-admin", "http")
 	if err != nil {
-		log.Fatal(err)
+		log.ErrorD("gearman-admin-discovery-host-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 	proto, err := discovery.Proto("gearman-admin", "http")
 	if err != nil {
-		log.Fatal(err)
+		log.ErrorD("gearman-admin-discovery-proto-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 
 	return fmt.Sprintf("%s://%s:%s@%s%s", proto, user, pass, hostPort, path)
@@ -85,8 +89,10 @@ func init() {
 }
 
 func mongoConnection(url string, username string, password string) (*mgo.Session, error) {
+	log.InfoD("mongo-connection-call", logger.M{"url": url})
 	dialInfo, err := mgo.ParseURL(url)
 	if err != nil {
+		log.ErrorD("mongo-parse-url-error", logger.M{"error": err})
 		return nil, err
 	}
 
@@ -94,16 +100,20 @@ func mongoConnection(url string, username string, password string) (*mgo.Session
 		return tls.Dial("tcp", addr.String(), &tls.Config{})
 	}
 	if username != "" {
+		log.Info("mongo-username-set")
 		dialInfo.Username = username
 		if password != "" {
+			log.Info("mongo-password-set")
 			dialInfo.Password = password
 		}
 	}
 
 	session, err := mgo.DialWithInfo(dialInfo)
 	if err != nil {
+		log.ErrorD("mongo-dial-error", logger.M{"error": err})
 		return nil, err
 	}
+	log.Info("mongo-dial-successful")
 	session.SetMode(mgo.Secondary, true)
 
 	return session, nil
@@ -113,7 +123,8 @@ func mongoConnection(url string, username string, password string) (*mgo.Session
 func parseConfigString(conf string) config.Config {
 	configYaml, err := config.ParseYAML([]byte(conf))
 	if err != nil {
-		log.Fatal("err parsing config file: ", err)
+		log.ErrorD("config-parse-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 
 	return configYaml
@@ -167,10 +178,11 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 	if bucket != "" {
 		outPath = fmt.Sprintf("s3://%s/%s", bucket, outPath)
 	}
-	log.Printf("uploading conf file to: %s", outPath)
+	log.InfoD("conf-file-upload", logger.M{"path": outPath})
 	err := pathio.Write(outPath, []byte(data))
 	if err != nil {
-		log.Fatal("error writing output file: ", err)
+		log.ErrorD("output-file-write-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 	return outPath
 }
@@ -179,11 +191,11 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 func getTableFromConf(sourceInput string, configYaml config.Config) (config.Table, error) {
 	// none specified, throw error
 	if sourceInput == "" {
-		log.Println("no collection specified, throwing error")
+		log.Error("no-collection-specified")
 		return config.Table{}, fmt.Errorf("No collection specified")
 	}
 	// collection was specified, get the right one
-	log.Printf("fetching collection specified: %s", sourceInput)
+	log.InfoD("collection-specified", logger.M{"collection": sourceInput})
 	curTable := config.Table{}
 	for _, table := range configYaml {
 		if sourceInput == table.Source {
@@ -201,12 +213,13 @@ func getTableFromConf(sourceInput string, configYaml config.Config) (config.Tabl
 // it takes in a reader for maximum flexibility
 func uploadFile(reader io.Reader, bucket, outputName string) {
 	s3Path := fmt.Sprintf("s3://%s/%s", bucket, outputName)
-	log.Printf("uploading file: %s to path: %s", outputName, s3Path)
+	log.InfoD("uploading-file", logger.M{"filename": outputName, "path": s3Path})
 	region, err := getRegionForBucket(bucket)
 	if err != nil {
-		log.Fatalf("err getting region for bucket: %s", err)
+		log.ErrorD("bucket-region-retrieval-error", logger.M{"error": err})
+		os.Exit(1)
 	}
-	log.Printf("found bucket region: %s", region)
+	log.InfoD("bucket-region-found", logger.M{"region": region})
 
 	// required to do this since we can't pipe together the gzip output and pathio, unfortunately
 	// TODO: modify Pathio so that we can support io.Pipe and use Pathio here: https://clever.atlassian.net/browse/IP-353
@@ -221,7 +234,8 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 		ServerSideEncryption: aws.String("AES256"),
 	})
 	if err != nil {
-		log.Fatalf("err uploading to s3 path: %s, err: %s", s3Path, err)
+		log.ErrorD("s3-upload-error", logger.M{"path": s3Path, "error": err})
+		os.Exit(1)
 	}
 }
 
@@ -254,7 +268,7 @@ func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Manifest file contents: %s", string(jsonVal))
+	log.InfoD("manifest-file-contents", logger.M{"value": string(jsonVal)})
 	return bytes.NewReader(jsonVal), nil
 }
 
@@ -273,15 +287,18 @@ func main() {
 
 	nextPayload, err := analyticspipeline.AnalyticsWorker(&flags)
 	if err != nil {
-		log.Fatalf("err: %#v", err)
+		log.ErrorD("analyticspipeline-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 
 	numFiles, err := strconv.Atoi(flags.NumFiles)
 	if err != nil {
-		log.Fatal(err)
+		log.ErrorD("num-files-atoi-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 	if numFiles < 1 {
-		log.Fatal("Must specify a number of output file parts >= 1")
+		log.ErrorD("output-files-number-error", logger.M{"error": "Must specify a number of output file parts >= 1"})
+		os.Exit(1)
 	}
 
 	// Times are rounded down to the nearest hour
@@ -289,13 +306,15 @@ func main() {
 
 	c, ok := configs[flags.Name]
 	if !ok {
-		log.Fatal("config sucks")
+		log.Error("invalid-config-error")
+		os.Exit(1)
 	}
 	configYaml := parseConfigString(c)
 	confFileName := copyConfigFile(flags.Bucket, timestamp, c, flags.Name)
 	sourceTable, err := getTableFromConf(flags.Collection, configYaml)
 	if err != nil {
-		log.Fatal(err)
+		log.ErrorD("get-table-from-conf-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 
 	mongoURL := mongoURLs[flags.Name]
@@ -303,9 +322,10 @@ func main() {
 	mongoPassword, ok := mongoPasswords[flags.Name]
 	mongoClient, err := mongoConnection(mongoURL, mongoUsername, mongoPassword)
 	if err != nil {
-		log.Fatal("Could not connect to mongo: ", err)
+		log.ErrorD("mongo-connection-error", logger.M{"error": err})
+		os.Exit(1)
 	}
-	log.Println("Connected to mongo")
+	log.Info("mongo-connection-successful")
 
 	// add name to list for submitting to next step in pipeline
 	outputTableName := sourceTable.Destination
@@ -319,7 +339,7 @@ func main() {
 	mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
 		totalMongoRows++
 		if totalMongoRows%1000000 == 0 {
-			log.Printf("Processing mongo row: %d", totalMongoRows)
+			log.InfoD("processing-mongo-row", logger.M{"numRows": totalMongoRows})
 		}
 		return nil
 	}))
@@ -330,14 +350,15 @@ func main() {
 	for i := 0; i < numFiles; i++ {
 		outputName := formatFilename(timestamp, sourceTable.Destination, strconv.Itoa(i), ".json.gz")
 		outputFilenames = append(outputFilenames, outputName)
-		log.Printf("Outputting file number: %d to location: %s", i, outputName)
+		log.InfoD("outputting-file", logger.M{"file-number": i, "location": outputName})
 
 		// Gzip output into pipe so that we don't need to store locally
 		reader, writer := io.Pipe()
 		go func(index int) {
 			zippedOutput, _ := gzip.NewWriterLevel(writer, gzip.BestSpeed) // sorcery
 			if err != nil {
-				log.Fatal("invalid compression level: ", err)
+				log.ErrorD("compression-level-error", logger.M{"error": err})
+				os.Exit(1)
 			}
 
 			sink := jsonsink.New(zippedOutput)
@@ -348,9 +369,10 @@ func main() {
 
 			count, err := exportData(mongoSource, sourceTable, sink, timestamp)
 			if err != nil {
-				log.Fatal("err reading table: ", err)
+				log.ErrorD("table-read-error", logger.M{"error": err})
+				os.Exit(1)
 			}
-			log.Printf("Output destination collection: %s, count: %d, fileIndex: %d", sourceTable.Destination, count, index)
+			log.InfoD("output-destination", logger.M{"collection": sourceTable.Destination, "count": count, "fileIndex": index})
 			// need to do this atomically to avoid concurrency issues
 			atomic.AddInt64(&totalSummedRows, int64(count))
 		}(i)
@@ -365,15 +387,17 @@ func main() {
 		}()
 	}
 	waitGroup.Wait()
-	log.Printf("Output %d total rows in %d files", totalSummedRows, numFiles)
+	log.InfoD("output-total", logger.M{"rows": totalSummedRows, "files": numFiles})
 	if totalSummedRows != totalMongoRows {
-		log.Fatalf("number of rows written to s3: %d does not match the number of rows pulled from mongo: %d", totalMongoRows, totalSummedRows)
+		log.ErrorD("rows-written-read-mismatch-error", logger.M{"written": totalMongoRows, "read": totalSummedRows})
+		os.Exit(1)
 	}
 	// we always upload a manifest including the files we just created
 	manifestFilename := formatFilename(timestamp, sourceTable.Destination, "", ".manifest")
 	manifestReader, err := createManifest(flags.Bucket, outputFilenames)
 	if err != nil {
-		log.Fatalf("Error creating manifest: %s", err)
+		log.ErrorD("manifest-create-error", logger.M{"error": err})
+		os.Exit(1)
 	}
 	uploadFile(manifestReader, flags.Bucket, manifestFilename)
 

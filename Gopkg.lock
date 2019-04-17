@@ -2,22 +2,29 @@
 
 
 [[projects]]
+  digest = "1:ff5a2adece605de230332da159f5f3cf65f64af0c13c36665e892df7eaf7ee5f"
   name = "github.com/Clever/analytics-util"
   packages = ["analyticspipeline"]
+  pruneopts = ""
   revision = "204e4231ba9909d8165707e18302c1652b11ec76"
   version = "1.0.0"
 
 [[projects]]
+  digest = "1:3a16914bc51681217b6e517c282cad959ad083dd73db9800a0c6480872a74786"
   name = "github.com/Clever/discovery-go"
   packages = ["."]
+  pruneopts = ""
   revision = "12684ef3012bf55b9827a6e7c96503e37b0d8379"
 
 [[projects]]
+  digest = "1:9053b44715ac321fe1e6dd45c236fb2369bf5a264641429f6253f4a197f6e70d"
   name = "github.com/Clever/pathio"
   packages = ["."]
+  pruneopts = ""
   revision = "0e1d760e1bb18e331c252947eb2a6c8d9a01583d"
 
 [[projects]]
+  digest = "1:a6a7dae645592151d289d22b8bba39e9a91527737c6b58aaf5c489efaae43ec7"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -47,53 +54,103 @@
     "service/s3",
     "service/s3/s3iface",
     "service/s3/s3manager",
-    "service/sts"
+    "service/sts",
   ]
+  pruneopts = ""
   revision = "63324a33d7e42a386c04d4daec764a3de243492e"
   version = "v1.13.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:3bf446ca05157f116b76db97fe71b0c5031783e59670410a472e90b801499409"
   name = "github.com/facebookgo/errgroup"
   packages = ["."]
+  pruneopts = ""
   revision = "779c8d7ef069c522bc72ee5f31a98d89a37f3fb6"
 
 [[projects]]
+  digest = "1:a00483fe4106b86fb1187a92b5cf6915c85f294ed4c129ccbe7cb1f1a06abd46"
   name = "github.com/go-ini/ini"
   packages = ["."]
+  pruneopts = ""
   revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
   version = "v1.32.0"
 
 [[projects]]
+  digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
+  pruneopts = ""
   revision = "0b12d6b5"
 
 [[projects]]
   branch = "master"
+  digest = "1:44a95828db2e8204cbd926d1f222d6164c511fbd349e6947940bfa6a9c6cc6aa"
   name = "github.com/pquerna/ffjson"
   packages = [
     "ffjson",
     "fflib/v1",
-    "fflib/v1/internal"
+    "fflib/v1/internal",
   ]
+  pruneopts = ""
   revision = "af8b230fcd2007c7095168ca8ab94c68b60840c6"
 
 [[projects]]
+  digest = "1:5a9985ccd70cb1b4363ce683c58ede619851ca06717a0c674d02f007cfbbdf25"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
+  pruneopts = ""
   revision = "efa3c4c36479edac5af79cbcb4bc8cb525e09b13"
 
 [[projects]]
+  branch = "master"
+  digest = "1:e6338f2518362ff701a556bd76afd90a2168d1c658ec5d1ea1e9c5ef30a7d157"
+  name = "github.com/xeipuuv/gojsonpointer"
+  packages = ["."]
+  pruneopts = ""
+  revision = "4e3ac2762d5f479393488629ee9370b50873b3a6"
+
+[[projects]]
+  branch = "master"
+  digest = "1:604f98a38394d2805a78c462396a4992b93fdd5b7306130add330f1a99ac6b0a"
+  name = "github.com/xeipuuv/gojsonreference"
+  packages = ["."]
+  pruneopts = ""
+  revision = "bd5ef7bd5415a7ac448318e64f11a24cd21e594b"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a2057a26ac210ee23e36dabde34c7a12926cc0f88bea87693977d3e63e24965e"
+  name = "github.com/xeipuuv/gojsonschema"
+  packages = ["."]
+  pruneopts = ""
+  revision = "6c00ba4a53168cfe40032d89407a5835d7d9efab"
+
+[[projects]]
+  digest = "1:16b3dba568430162ef141a8cd92c355b71b04afdea2516a1b94cb9a40b8f7007"
   name = "gopkg.in/Clever/kayvee-go.v3"
   packages = [
     ".",
-    "logger"
+    "logger",
   ]
+  pruneopts = ""
   revision = "d49feee080e8e32e01a5f415cf1f9dc264dfb043"
   version = "v3.0.0"
 
 [[projects]]
+  digest = "1:ebe5a08de85b249031c22bdf7ea4120be2b8e4751cb647ef8aa829774aa87225"
+  name = "gopkg.in/Clever/kayvee-go.v6"
+  packages = [
+    ".",
+    "logger",
+    "router",
+  ]
+  pruneopts = ""
+  revision = "1e2557bcbd6982e6303c364505d1c129ede8f2ee"
+  version = "v6.17.0"
+
+[[projects]]
+  digest = "1:24fb3bd11646a21c9dcca675be1324853a5e722ed31ee5c207dcf1c3c030ee31"
   name = "gopkg.in/Clever/optimus.v3"
   packages = [
     ".",
@@ -102,35 +159,65 @@
     "sources/slice",
     "tests",
     "transformer",
-    "transforms"
+    "transforms",
   ]
+  pruneopts = ""
   revision = "723bfdc306c1dc9f96f8f30f4408818470139ebf"
   version = "v3.7.0"
 
 [[projects]]
+  digest = "1:812b8cd6b58e655c0399b001419f51442b6ca9d9cf9a9edf471a4a5ad497c767"
   name = "gopkg.in/fatih/set.v0"
   packages = ["."]
+  pruneopts = ""
   revision = "57907de300222151a123d29255ed17f5ed43fad3"
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:96ec8c578923037c1f820917520f62edafb2f094ae18da8e1bdab5b2e511960b"
   name = "gopkg.in/mgo.v2"
   packages = [
     ".",
     "bson",
     "internal/sasl",
-    "internal/scram"
+    "internal/scram",
   ]
+  pruneopts = ""
   revision = "b6e2fa371e64216a45e61072a96d4e3859f169da"
 
 [[projects]]
+  branch = "v2"
+  digest = "1:60ccede33d50c82c86e907255319a6f40dca4ac395e5ee143638176d3b871069"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
+  pruneopts = ""
+  revision = "7b8349ac747c6a24702b762d2c4fd9266cf4f1d6"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0f016a9dbf2c3c941baa24689e802ca963809dc0e822870b5e378754799c120f"
+  input-imports = [
+    "github.com/Clever/analytics-util/analyticspipeline",
+    "github.com/Clever/discovery-go",
+    "github.com/Clever/pathio",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/s3",
+    "github.com/aws/aws-sdk-go/service/s3/s3manager",
+    "github.com/pquerna/ffjson/ffjson",
+    "github.com/stretchr/testify/assert",
+    "gopkg.in/Clever/kayvee-go.v6",
+    "gopkg.in/Clever/kayvee-go.v6/logger",
+    "gopkg.in/Clever/optimus.v3",
+    "gopkg.in/Clever/optimus.v3/sinks/json",
+    "gopkg.in/Clever/optimus.v3/sources/mongo",
+    "gopkg.in/Clever/optimus.v3/sources/slice",
+    "gopkg.in/Clever/optimus.v3/tests",
+    "gopkg.in/Clever/optimus.v3/transformer",
+    "gopkg.in/Clever/optimus.v3/transforms",
+    "gopkg.in/mgo.v2",
+    "gopkg.in/mgo.v2/bson",
+    "gopkg.in/yaml.v2",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
