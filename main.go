@@ -34,7 +34,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-var configs map[string]string
+var (
+	configs        map[string]string
+	mongoURLs      map[string]string
+	mongoUsernames map[string]string
+	mongoPasswords map[string]string
+)
 
 // getEnv looks up an environment variable given and exits if it does not exist.
 func getEnv(envVar string) string {
@@ -64,6 +69,18 @@ func init() {
 		"sis":     getEnv("SIS_CONFIG"),
 		"app_sis": getEnv("APP_SIS_CONFIG"),
 		"legacy":  getEnv("LEGACY_CONFIG"),
+	}
+	mongoURLs = map[string]string{
+		"il":      getEnv("IL_URL"),
+		"sis":     getEnv("SIS_URL"),
+		"app_sis": getEnv("APP_SIS_URL"),
+		"legacy":  getEnv("LEGACY_URL"),
+	}
+	mongoUsernames = map[string]string{
+		"il": getEnv("IL_USERNAME"),
+	}
+	mongoPasswords = map[string]string{
+		"il": getEnv("IL_PASSWORD"),
 	}
 }
 
@@ -281,7 +298,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mongoClient, err := mongoConnection(configYaml.URL, configYaml.User, configYaml.Password)
+	mongoURL := mongoURLs[flags.Name]
+	mongoUsername, ok := mongoUsernames[flags.Name]
+	mongoPassword, ok := mongoPasswords[flags.Name]
+	mongoClient, err := mongoConnection(mongoURL, mongoUsername, mongoPassword)
 	if err != nil {
 		log.Fatal("Could not connect to mongo: ", err)
 	}
