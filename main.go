@@ -55,12 +55,12 @@ func getEnv(envVar string) string {
 func generateServiceEndpoint(user, pass, path string) string {
 	hostPort, err := discovery.HostPort("gearman-admin", "http")
 	if err != nil {
-		log.ErrorD("gearman-admin-discovery-host-error", logger.M{"error": err})
+		log.ErrorD("gearman-admin-discovery-host-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 	proto, err := discovery.Proto("gearman-admin", "http")
 	if err != nil {
-		log.ErrorD("gearman-admin-discovery-proto-error", logger.M{"error": err})
+		log.ErrorD("gearman-admin-discovery-proto-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 
@@ -102,7 +102,7 @@ func mongoAtlasConnection(url string, username string, password string) (*mgo.Se
 	log.InfoD("mongo-connection-call", logger.M{"url": url})
 	dialInfo, err := mgo.ParseURL(url)
 	if err != nil {
-		log.ErrorD("mongo-parse-url-error", logger.M{"error": err})
+		log.ErrorD("mongo-parse-url-error", logger.M{"error": err.Error()})
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func mongoAtlasConnection(url string, username string, password string) (*mgo.Se
 
 	session, err := mgo.DialWithInfo(dialInfo)
 	if err != nil {
-		log.ErrorD("mongo-dial-error", logger.M{"error": err})
+		log.ErrorD("mongo-dial-error", logger.M{"error": err.Error()})
 		return nil, err
 	}
 	log.Info("mongo-dial-successful")
@@ -133,7 +133,7 @@ func mongoAtlasConnection(url string, username string, password string) (*mgo.Se
 func parseConfigString(conf string) config.Config {
 	configYaml, err := config.ParseYAML([]byte(conf))
 	if err != nil {
-		log.ErrorD("config-parse-error", logger.M{"error": err})
+		log.ErrorD("config-parse-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 
@@ -191,7 +191,7 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 	log.InfoD("conf-file-upload", logger.M{"path": outPath})
 	err := pathio.Write(outPath, []byte(data))
 	if err != nil {
-		log.ErrorD("output-file-write-error", logger.M{"error": err})
+		log.ErrorD("output-file-write-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 	return outPath
@@ -226,7 +226,7 @@ func uploadFile(reader io.Reader, bucket, outputName string) {
 	log.InfoD("uploading-file", logger.M{"filename": outputName, "path": s3Path})
 	region, err := getRegionForBucket(bucket)
 	if err != nil {
-		log.ErrorD("bucket-region-retrieval-error", logger.M{"error": err})
+		log.ErrorD("bucket-region-retrieval-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 	log.InfoD("bucket-region-found", logger.M{"region": region})
@@ -297,13 +297,13 @@ func main() {
 
 	nextPayload, err := analyticspipeline.AnalyticsWorker(&flags)
 	if err != nil {
-		log.ErrorD("analyticspipeline-error", logger.M{"error": err})
+		log.ErrorD("analyticspipeline-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 
 	numFiles, err := strconv.Atoi(flags.NumFiles)
 	if err != nil {
-		log.ErrorD("num-files-atoi-error", logger.M{"error": err})
+		log.ErrorD("num-files-atoi-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 	if numFiles < 1 {
@@ -323,7 +323,7 @@ func main() {
 	confFileName := copyConfigFile(flags.Bucket, timestamp, c, flags.Name)
 	sourceTable, err := getTableFromConf(flags.Collection, configYaml)
 	if err != nil {
-		log.ErrorD("get-table-from-conf-error", logger.M{"error": err})
+		log.ErrorD("get-table-from-conf-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 
@@ -372,7 +372,7 @@ func main() {
 		go func(index int) {
 			zippedOutput, _ := gzip.NewWriterLevel(writer, gzip.BestSpeed) // sorcery
 			if err != nil {
-				log.ErrorD("compression-level-error", logger.M{"error": err})
+				log.ErrorD("compression-level-error", logger.M{"error": err.Error()})
 				os.Exit(1)
 			}
 
@@ -384,7 +384,7 @@ func main() {
 
 			count, err := exportData(mongoSource, sourceTable, sink, timestamp)
 			if err != nil {
-				log.ErrorD("table-read-error", logger.M{"error": err})
+				log.ErrorD("table-read-error", logger.M{"error": err.Error()})
 				os.Exit(1)
 			}
 			log.InfoD("output-destination", logger.M{"collection": sourceTable.Destination, "count": count, "fileIndex": index})
@@ -411,7 +411,7 @@ func main() {
 	manifestFilename := formatFilename(timestamp, sourceTable.Destination, "", ".manifest")
 	manifestReader, err := createManifest(flags.Bucket, outputFilenames)
 	if err != nil {
-		log.ErrorD("manifest-create-error", logger.M{"error": err})
+		log.ErrorD("manifest-create-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
 	uploadFile(manifestReader, flags.Bucket, manifestFilename)
