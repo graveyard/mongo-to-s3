@@ -88,7 +88,17 @@ func init() {
 	}
 }
 
-func mongoConnection(url string, username string, password string) (*mgo.Session, error) {
+func mongoConnection(url string) *mgo.Session {
+	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
+	if err != nil {
+		log.ErrorD("mongo-dial-error", logger.M{"error": err.Error()})
+		os.Exit(1)
+	}
+	s.SetMode(mgo.Monotonic, true)
+	return s
+}
+
+func mongoAtlasConnection(url string, username string, password string) (*mgo.Session, error) {
 	log.InfoD("mongo-connection-call", logger.M{"url": url})
 	dialInfo, err := mgo.ParseURL(url)
 	if err != nil {
@@ -320,10 +330,15 @@ func main() {
 	mongoURL := mongoURLs[flags.Name]
 	mongoUsername, ok := mongoUsernames[flags.Name]
 	mongoPassword, ok := mongoPasswords[flags.Name]
-	mongoClient, err := mongoConnection(mongoURL, mongoUsername, mongoPassword)
-	if err != nil {
-		log.ErrorD("mongo-connection-error", logger.M{"error": err})
-		os.Exit(1)
+	var mongoClient *mgo.Session
+	if flags.Name == "il" {
+		mongoClient, err = mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
+		if err != nil {
+			log.ErrorD("mongo-connection-error", logger.M{"error": err.Error()})
+			os.Exit(1)
+		}
+	} else {
+		mongoClient = mongoConnection(mongoURL)
 	}
 	log.Info("mongo-connection-successful")
 
