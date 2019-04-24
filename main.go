@@ -197,28 +197,6 @@ func copyConfigFile(bucket, timestamp, data, configName string) string {
 	return outPath
 }
 
-// Given the command line inputs and the config file, choose the tables we want to push to s3
-func getTableFromConf(sourceInput string, configYaml config.Config) (config.Table, error) {
-	// none specified, throw error
-	if sourceInput == "" {
-		log.Error("no-collection-specified")
-		return config.Table{}, fmt.Errorf("No collection specified")
-	}
-	// collection was specified, get the right one
-	log.InfoD("collection-specified", logger.M{"collection": sourceInput})
-	curTable := config.Table{}
-	for _, table := range configYaml {
-		if sourceInput == table.Source {
-			curTable = table
-		}
-	}
-	// if not set, yell
-	if curTable.Destination == "" {
-		return config.Table{}, fmt.Errorf("Could not find source table: %s in config", sourceInput)
-	}
-	return curTable, nil
-}
-
 // uploadFile handles the awkwardness around s3 regions to upload the file
 // it takes in a reader for maximum flexibility
 func uploadFile(reader io.Reader, bucket, outputName string) {
@@ -321,9 +299,17 @@ func main() {
 	}
 	configYaml := parseConfigString(c)
 	confFileName := copyConfigFile(flags.Bucket, timestamp, c, flags.Name)
-	sourceTable, err := getTableFromConf(flags.Collection, configYaml)
-	if err != nil {
-		log.ErrorD("get-table-from-conf-error", logger.M{"error": err.Error()})
+
+	if flags.Collection == "" {
+		log.Error("no-collection-specified")
+		os.Exit(1)
+	}
+
+	log.InfoD("collection-specified", logger.M{"collection": flags.Collection})
+
+	sourceTable, ok := configYaml[flags.Collection]
+	if !ok {
+		log.ErrorD("config-table-not-found", logger.M{"key": flags.Collection})
 		os.Exit(1)
 	}
 
