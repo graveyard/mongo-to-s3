@@ -19,9 +19,15 @@ export SERVICE_GEARMAN_ADMIN_HTTP_HOST?=x
 export GEARMAN_ADMIN_USER?=x
 export GEARMAN_ADMIN_PASS?=x
 export GEARMAN_ADMIN_PATH?=x
+export IL_URL?=x
+export IL_USERNAME?=x
+export IL_PASSWORD?=x
 export IL_CONFIG?=x
+export SIS_URL?=x
 export SIS_CONFIG?=x
+export APP_SIS_URL?=x
 export APP_SIS_CONFIG?=x
+export LEGACY_URL?=x
 export LEGACY_CONFIG?=x
 test: $(PKGS)
 

@@ -1,9 +1,15 @@
 run:
   type: docker
 env:
+- IL_URL
+- IL_USERNAME
+- IL_PASSWORD
 - IL_CONFIG
+- SIS_URL
 - SIS_CONFIG
+- APP_SIS_URL
 - APP_SIS_CONFIG
+- LEGACY_URL
 - LEGACY_CONFIG
 resources:
   cpu: 0.01

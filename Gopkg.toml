@@ -33,3 +33,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/pquerna/ffjson"
+
+[[constraint]]
+  name = "gopkg.in/Clever/kayvee-go.v6"
+  version = "^6.15.0"
