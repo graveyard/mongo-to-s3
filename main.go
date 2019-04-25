@@ -71,7 +71,7 @@ func init() {
 	configs = map[string]string{
 		"il":           getEnv("IL_CONFIG"),
 		"sis":          getEnv("SIS_CONFIG"),
-		"sis_read":     getEnv("SIS_CONFIG"),
+		"sis_read":     getEnv("SIS_READ_CONFIG"),
 		"app_sis":      getEnv("APP_SIS_CONFIG"),
 		"app_sis_read": getEnv("APP_SIS_READ_CONFIG"),
 		"legacy":       getEnv("LEGACY_CONFIG"),
