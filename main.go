@@ -69,16 +69,22 @@ func generateServiceEndpoint(user, pass, path string) string {
 
 func init() {
 	configs = map[string]string{
-		"il":      getEnv("IL_CONFIG"),
-		"sis":     getEnv("SIS_CONFIG"),
-		"app_sis": getEnv("APP_SIS_CONFIG"),
-		"legacy":  getEnv("LEGACY_CONFIG"),
+		"il":           getEnv("IL_CONFIG"),
+		"sis":          getEnv("SIS_CONFIG"),
+		"sis_read":     getEnv("SIS_CONFIG"),
+		"app_sis":      getEnv("APP_SIS_CONFIG"),
+		"app_sis_read": getEnv("APP_SIS_READ_CONFIG"),
+		"legacy":       getEnv("LEGACY_CONFIG"),
+		"legacy_read":  getEnv("LEGACY_READ_CONFIG"),
 	}
 	mongoURLs = map[string]string{
-		"il":      getEnv("IL_URL"),
-		"sis":     getEnv("SIS_URL"),
-		"app_sis": getEnv("APP_SIS_URL"),
-		"legacy":  getEnv("LEGACY_URL"),
+		"il":           getEnv("IL_URL"),
+		"sis":          getEnv("SIS_URL"),
+		"sis_read":     getEnv("SIS_READ_URL"),
+		"app_sis":      getEnv("APP_SIS_URL"),
+		"app_sis_read": getEnv("APP_SIS_READ_URL"),
+		"legacy":       getEnv("LEGACY_URL"),
+		"legacy_read":  getEnv("LEGACY_READ_URL"),
 	}
 	mongoUsernames = map[string]string{
 		"il": getEnv("IL_USERNAME"),

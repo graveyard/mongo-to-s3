@@ -25,10 +25,16 @@ export IL_PASSWORD?=x
 export IL_CONFIG?=x
 export SIS_URL?=x
 export SIS_CONFIG?=x
+export SIS_READ_URL?=x
+export SIS_READ_CONFIG?=x
 export APP_SIS_URL?=x
 export APP_SIS_CONFIG?=x
+export APP_SIS_READ_URL?=x
+export APP_SIS_READ_CONFIG?=x
 export LEGACY_URL?=x
 export LEGACY_CONFIG?=x
+export LEGACY_READ_URL?=x
+export LEGACY_READ_CONFIG?=x
 test: $(PKGS)
 
 build: bin/sfncli
