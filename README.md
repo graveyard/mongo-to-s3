@@ -73,6 +73,7 @@ Note that we don't require a `source` here as we populate it in `mongo-to-s3`.
 - boolean
 - float
 - int
+- bigint
 - timestamp
 - text (256 characters)
 - longtext (65535 characters)
