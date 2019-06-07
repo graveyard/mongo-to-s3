@@ -87,10 +87,14 @@ func init() {
 		"legacy_read":  getEnv("LEGACY_READ_URL"),
 	}
 	mongoUsernames = map[string]string{
-		"il": getEnv("IL_USERNAME"),
+		"il":       getEnv("IL_USERNAME"),
+		"sis":      getEnv("SIS_USERNAME"),
+		"sis_read": getEnv("SIS_READ_USERNAME"),
 	}
 	mongoPasswords = map[string]string{
-		"il": getEnv("IL_PASSWORD"),
+		"il":       getEnv("IL_PASSWORD"),
+		"sis":      getEnv("SIS_PASSWORD"),
+		"sis_read": getEnv("SIS_READ_PASSWORD"),
 	}
 }
 
