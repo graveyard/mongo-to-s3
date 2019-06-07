@@ -88,14 +88,18 @@ func init() {
 		"legacy_read":  getEnv("LEGACY_READ_URL"),
 	}
 	mongoUsernames = map[string]string{
-		"il":       getEnv("IL_USERNAME"),
-		"sis":      getEnv("SIS_USERNAME"),
-		"sis_read": getEnv("SIS_READ_USERNAME"),
+		"il":           getEnv("IL_USERNAME"),
+		"sis":          getEnv("SIS_USERNAME"),
+		"sis_read":     getEnv("SIS_READ_USERNAME"),
+		"app_sis":      getEnv("APP_SIS_USERNAME"),
+		"app_sis_read": getEnv("APP_SIS_READ_USERNAME"),
 	}
 	mongoPasswords = map[string]string{
-		"il":       getEnv("IL_PASSWORD"),
-		"sis":      getEnv("SIS_PASSWORD"),
-		"sis_read": getEnv("SIS_READ_PASSWORD"),
+		"il":           getEnv("IL_PASSWORD"),
+		"sis":          getEnv("SIS_PASSWORD"),
+		"sis_read":     getEnv("SIS_READ_PASSWORD"),
+		"app_sis":      getEnv("APP_SIS_PASSWORD"),
+		"app_sis_read": getEnv("APP_SIS_READ_PASSWORD"),
 	}
 	usesAtlasMap = map[string]bool{
 		"il":       true,
