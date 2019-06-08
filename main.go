@@ -40,7 +40,6 @@ var (
 	mongoURLs      map[string]string
 	mongoUsernames map[string]string
 	mongoPasswords map[string]string
-	usesAtlasMap   map[string]bool
 )
 
 // getEnv looks up an environment variable given and exits if it does not exist.
@@ -88,19 +87,10 @@ func init() {
 		"legacy_read":  getEnv("LEGACY_READ_URL"),
 	}
 	mongoUsernames = map[string]string{
-		"il":       getEnv("IL_USERNAME"),
-		"sis":      getEnv("SIS_USERNAME"),
-		"sis_read": getEnv("SIS_READ_USERNAME"),
+		"il": getEnv("IL_USERNAME"),
 	}
 	mongoPasswords = map[string]string{
-		"il":       getEnv("IL_PASSWORD"),
-		"sis":      getEnv("SIS_PASSWORD"),
-		"sis_read": getEnv("SIS_READ_PASSWORD"),
-	}
-	usesAtlasMap = map[string]bool{
-		"il":       true,
-		"sis":      true,
-		"sis_read": true,
+		"il": getEnv("IL_PASSWORD"),
 	}
 }
 
@@ -333,8 +323,7 @@ func main() {
 	mongoUsername, ok := mongoUsernames[flags.Name]
 	mongoPassword, ok := mongoPasswords[flags.Name]
 	var mongoClient *mgo.Session
-	usesAtlas, ok := usesAtlasMap[flags.Name]
-	if ok && usesAtlas {
+	if flags.Name == "il" {
 		mongoClient, err = mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
 		if err != nil {
 			log.ErrorD("mongo-connection-error", logger.M{"error": err.Error()})
