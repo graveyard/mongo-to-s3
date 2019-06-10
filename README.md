@@ -80,6 +80,6 @@ Note that we don't require a `source` here as we populate it in `mongo-to-s3`.
 
 It should be easy to add more, however.
 
-5) You may want to think about issues if some data arrives sooner than other data to the data warehouse. For instance, suppose item A is only "active" if an item B exists in the database and points to A. If you've synched over A significantly before B, it may appear that A is 'inactive' until B is synched over. In reality, A has always been 'active'.
+5) You may want to think about issues if some data arrives sooner than other data to the data warehouse. For instance, suppose item A is only "active" if an item B exists in the database and points to A. If you've synched over A significantly before B, it may appear that A is 'inactive' until B is synced over. In reality, A has always been 'active'.
 
 6) While you pass *collections* to run on as parameters to `mongo-to-s3`, the eventual `s3-to-redshft` job will post with the *destination table* names as parameters.
