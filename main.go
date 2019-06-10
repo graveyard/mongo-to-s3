@@ -102,9 +102,11 @@ func init() {
 		"app_sis_read": getEnv("APP_SIS_READ_PASSWORD"),
 	}
 	usesAtlasMap = map[string]bool{
-		"il":       true,
-		"sis":      true,
-		"sis_read": true,
+		"il":           true,
+		"sis":          true,
+		"sis_read":     true,
+		"app_sis":      true,
+		"app_sis_read": true,
 	}
 }
 
