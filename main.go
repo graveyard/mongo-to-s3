@@ -93,6 +93,8 @@ func init() {
 		"sis_read":     getEnv("SIS_READ_USERNAME"),
 		"app_sis":      getEnv("APP_SIS_USERNAME"),
 		"app_sis_read": getEnv("APP_SIS_READ_USERNAME"),
+		"legacy":       getEnv("LEGACY_USERNAME"),
+		"legacy_read":  getEnv("LEGACY_READ_USERNAME"),
 	}
 	mongoPasswords = map[string]string{
 		"il":           getEnv("IL_PASSWORD"),
@@ -100,13 +102,8 @@ func init() {
 		"sis_read":     getEnv("SIS_READ_PASSWORD"),
 		"app_sis":      getEnv("APP_SIS_PASSWORD"),
 		"app_sis_read": getEnv("APP_SIS_READ_PASSWORD"),
-	}
-	usesAtlasMap = map[string]bool{
-		"il":           true,
-		"sis":          true,
-		"sis_read":     true,
-		"app_sis":      true,
-		"app_sis_read": true,
+		"legacy":       getEnv("LEGACY_PASSWORD"),
+		"legacy_read":  getEnv("LEGACY_READ_PASSWORD"),
 	}
 }
 
@@ -339,15 +336,11 @@ func main() {
 	mongoUsername, ok := mongoUsernames[flags.Name]
 	mongoPassword, ok := mongoPasswords[flags.Name]
 	var mongoClient *mgo.Session
-	usesAtlas, ok := usesAtlasMap[flags.Name]
-	if ok && usesAtlas {
-		mongoClient, err = mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
-		if err != nil {
-			log.ErrorD("mongo-connection-error", logger.M{"error": err.Error()})
-			os.Exit(1)
-		}
-	} else {
-		mongoClient = mongoConnection(mongoURL)
+
+	mongoClient, err = mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
+	if err != nil {
+		log.ErrorD("mongo-connection-error", logger.M{"error": err.Error()})
+		os.Exit(1)
 	}
 	log.Info("mongo-connection-successful")
 
