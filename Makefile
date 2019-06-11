@@ -43,10 +43,6 @@ export LEGACY_URL?=x
 export LEGACY_CONFIG?=x
 export LEGACY_READ_URL?=x
 export LEGACY_READ_CONFIG?=x
-export LEGACY_USERNAME=x
-export LEGACY_READ_USERNAME=x
-export LEGACY_PASSWORD=x
-export LEGACY_READ_PASSWORD=x
 test: $(PKGS)
 
 build: bin/sfncli
