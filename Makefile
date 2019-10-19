@@ -10,7 +10,7 @@ SFNCLI_VERSION := latest
 
 .PHONY: test $(PKGS) run install_deps build
 
-$(eval $(call golang-version-check,1.12))
+$(eval $(call golang-version-check,1.13))
 
 # test vars
 export SERVICE_GEARMAN_ADMIN_HTTP_PROTO?=x
