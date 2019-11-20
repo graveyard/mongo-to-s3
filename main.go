@@ -77,6 +77,7 @@ func init() {
 		"app_sis_read": getEnv("APP_SIS_READ_CONFIG"),
 		"legacy":       getEnv("LEGACY_CONFIG"),
 		"legacy_read":  getEnv("LEGACY_READ_CONFIG"),
+		"misc":         getEnv("MISC_CONFIG"),
 	}
 	mongoURLs = map[string]string{
 		"il":           getEnv("IL_URL"),
@@ -86,6 +87,7 @@ func init() {
 		"app_sis_read": getEnv("APP_SIS_READ_URL"),
 		"legacy":       getEnv("LEGACY_URL"),
 		"legacy_read":  getEnv("LEGACY_READ_URL"),
+		"misc":         getEnv("MISC_URL"),
 	}
 	mongoUsernames = map[string]string{
 		"il":           getEnv("IL_USERNAME"),
@@ -95,6 +97,7 @@ func init() {
 		"app_sis_read": getEnv("APP_SIS_READ_USERNAME"),
 		"legacy":       getEnv("LEGACY_USERNAME"),
 		"legacy_read":  getEnv("LEGACY_READ_USERNAME"),
+		"misc":         getEnv("MISC_USERNAME"),
 	}
 	mongoPasswords = map[string]string{
 		"il":           getEnv("IL_PASSWORD"),
@@ -104,6 +107,7 @@ func init() {
 		"app_sis_read": getEnv("APP_SIS_READ_PASSWORD"),
 		"legacy":       getEnv("LEGACY_PASSWORD"),
 		"legacy_read":  getEnv("LEGACY_READ_PASSWORD"),
+		"misc":         getEnv("MISC_PASSWORD"),
 	}
 }
 
