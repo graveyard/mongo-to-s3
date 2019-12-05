@@ -33,7 +33,7 @@ Right now, `mongo-to-s3` will attempt export all fields/tables in the `X_config.
 
 Configs are env vars in `YAML` and follow this format:
 ```yaml
-tablename-whateveryouwant:
+<redshift_table_name>:
   dest: <redshift_table_name>
   source: <mongo_table_name>
   columns:
