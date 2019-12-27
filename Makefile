@@ -60,8 +60,11 @@ test: $(PKGS)
 build: bin/sfncli
 	$(call golang-build,$(PKG),$(EXECUTABLE))
 
-run: build
-	bin/$(EXECUTABLE) '$(PAYLOAD)'
+# run: build
+# 	bin/$(EXECUTABLE) '$(PAYLOAD)'
+
+run:
+	./sis_export.sh
 
 $(PKGS): golang-test-all-deps
 	$(call golang-test-all,$@)
