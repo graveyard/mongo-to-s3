@@ -37,3 +37,7 @@
 [[constraint]]
   name = "gopkg.in/Clever/kayvee-go.v6"
   version = "^6.15.0"
+
+[[constraint]]
+  name = "go.mongodb.org/mongo-driver"
+  version = "1.1.3"

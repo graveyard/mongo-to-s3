@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/tls"
+	"context"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 
 	"github.com/Clever/mongo-to-s3/config"
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,11 +28,11 @@ import (
 	"github.com/Clever/pathio"
 	"gopkg.in/Clever/optimus.v3"
 	jsonsink "gopkg.in/Clever/optimus.v3/sinks/json"
-	mongosource "gopkg.in/Clever/optimus.v3/sources/mongo"
 	"gopkg.in/Clever/optimus.v3/transformer"
-	"gopkg.in/Clever/optimus.v3/transforms"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var (
@@ -111,45 +112,35 @@ func init() {
 	}
 }
 
-func mongoConnection(url string) *mgo.Session {
-	s, err := mgo.DialWithTimeout(url, 10*time.Minute)
-	if err != nil {
-		log.ErrorD("mongo-dial-error", logger.M{"error": err.Error()})
-		os.Exit(1)
-	}
-	s.SetMode(mgo.Monotonic, true)
-	return s
-}
-
-func mongoAtlasConnection(url string, username string, password string) (*mgo.Session, error) {
+func mongoAtlasConnection(url string, username string, password string) (*mongo.Client, error) {
 	log.InfoD("mongo-connection-call", logger.M{"url": url})
-	dialInfo, err := mgo.ParseURL(url)
-	if err != nil {
-		log.ErrorD("mongo-parse-url-error", logger.M{"error": err.Error()})
-		return nil, err
-	}
 
-	dialInfo.DialServer = func(addr *mgo.ServerAddr) (net.Conn, error) {
-		return tls.Dial("tcp", addr.String(), &tls.Config{})
-	}
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Minute)
+	clientOptions := options.Client().SetReadPreference(readpref.Secondary())
+
 	if username != "" {
 		log.Info("mongo-username-set")
-		dialInfo.Username = username
+		credentials := options.Credential{
+			Username:    username,
+			PasswordSet: false,
+		}
 		if password != "" {
 			log.Info("mongo-password-set")
-			dialInfo.Password = password
+			credentials.Password = password
+			credentials.PasswordSet = true
 		}
+		clientOptions.SetAuth(credentials)
 	}
 
-	session, err := mgo.DialWithInfo(dialInfo)
+	client, err := mongo.Connect(ctx, clientOptions.ApplyURI(url))
 	if err != nil {
-		log.ErrorD("mongo-dial-error", logger.M{"error": err.Error()})
+		log.ErrorD("mongo-connect-error", logger.M{"error": err.Error()})
 		return nil, err
 	}
-	log.Info("mongo-dial-successful")
-	session.SetMode(mgo.Secondary, true)
 
-	return session, nil
+	log.Info("mongo-connect-successful")
+
+	return client, nil
 }
 
 // parseConfigString takes in a config from an env var
@@ -161,20 +152,6 @@ func parseConfigString(conf string) config.Config {
 	}
 
 	return configYaml
-}
-
-func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
-	fields := bson.M{}
-	if table.Meta.UseProjectionOptimization == true {
-		// Create a projection to only pull the fields we're interested in
-		for _, f := range table.Fields {
-			fields[f.Source] = 1
-		}
-	}
-
-	collection := s.DB("").C(table.Source)
-	iter := collection.Find(nil).Batch(1000).Prefetch(0.75).Select(fields).Iter()
-	return mongosource.New(iter)
 }
 
 func formatFilename(timestamp, collectionName, fileIndex, extension string) string {
@@ -339,9 +316,8 @@ func main() {
 	mongoURL := mongoURLs[flags.Name]
 	mongoUsername, ok := mongoUsernames[flags.Name]
 	mongoPassword, ok := mongoPasswords[flags.Name]
-	var mongoClient *mgo.Session
 
-	mongoClient, err = mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
+	mongoClient, err := mongoAtlasConnection(mongoURL, mongoUsername, mongoPassword)
 	if err != nil {
 		log.ErrorD("mongo-connection-error", logger.M{"error": err.Error()})
 		os.Exit(1)
@@ -356,14 +332,50 @@ func main() {
 	var totalSummedRows int64
 	var totalMongoRows int64
 
-	mongoSource := configuredOptimusTable(mongoClient, sourceTable)
-	mongoSource = optimus.Transform(mongoSource, transforms.Each(func(d optimus.Row) error {
+	collection := mongoClient.Database("").Collection(sourceTable.Source)
+
+	findOptions := options.Find().SetBatchSize(1000).SetComment("mongo-to-s3")
+
+	if sourceTable.Meta.UseProjectionOptimization == true {
+		// Create a projection to only pull the fields we're interested in
+		fields := bson.M{}
+		for _, f := range sourceTable.Fields {
+			fields[f.Source] = 1
+		}
+		findOptions = findOptions.SetProjection(fields)
+	}
+
+	cur, err := collection.Find(context.Background(), bson.D{}, findOptions)
+	if err != nil {
+		log.ErrorD("mongo-find-error", logger.M{"error": err.Error()})
+		os.Exit(1)
+	}
+
+	defer cur.Close(context.Background())
+	for cur.Next(context.Background()) {
 		totalMongoRows++
 		if totalMongoRows%1000000 == 0 {
 			log.InfoD("processing-mongo-row", logger.M{"numRows": totalMongoRows})
 		}
 		return nil
-	}))
+		// To decode into a struct, use cursor.Decode()
+		result := struct {
+			Foo string
+			Bar int32
+		}{}
+		err := cur.Decode(&result)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// do something with result...
+
+		// To get the raw bson bytes use cursor.Current
+		raw := cur.Current
+		// do something with raw...
+	}
+	if err := cur.Err(); err != nil {
+		return err
+	}
 
 	// we want to split up the file for performance reasons
 	var waitGroup sync.WaitGroup
