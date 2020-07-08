@@ -187,9 +187,9 @@ func formatFilename(timestamp, collectionName, fileIndex, extension string) stri
 		fileIndex = fmt.Sprintf("_%s", fileIndex)
 	}
 	t, _ := time.Parse(time.RFC3339, timestamp)
-	filePath := fmt.Sprintf("mongo/%s/_data_timestamp_year=%02d/_data_timestamp_month=%02d/_data_timestamp_day=%02d/",
+	filePath := fmt.Sprintf("mongo_raw/%s/_data_timestamp_year=%02d/_data_timestamp_month=%02d/_data_timestamp_day=%02d/",
 		collectionName, t.Year(), int(t.Month()), t.Day())
-	fileName := fmt.Sprintf("mongo_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
+	fileName := fmt.Sprintf("mongo_raw_%s_%s%s%s", collectionName, timestamp, fileIndex, extension)
 	return filePath + fileName
 }
 
