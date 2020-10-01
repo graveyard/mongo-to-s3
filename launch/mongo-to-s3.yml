@@ -42,6 +42,7 @@ resources:
   soft_mem_limit: 1.6
   max_mem: 3.0
 dependencies:
+  - analytics-latency-config-service
   - gearman-admin
 team: eng-ip
 aws:
