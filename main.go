@@ -22,6 +22,8 @@ import (
 
 	json "github.com/pquerna/ffjson/ffjson"
 
+	alcsWagClient "github.com/Clever/analytics-latency-config-service/gen-go/client"
+	alcs "github.com/Clever/analytics-latency-config-service/gen-go/models"
 	"github.com/Clever/analytics-util/analyticspipeline"
 	"github.com/Clever/discovery-go"
 	"github.com/Clever/pathio"
@@ -41,6 +43,7 @@ var (
 	mongoUsernames map[string]string
 	mongoPasswords map[string]string
 	usesAtlasMap   map[string]bool
+	alcsClient     alcsWagClient.Client
 )
 
 // getEnv looks up an environment variable given and exits if it does not exist.
@@ -288,16 +291,24 @@ func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 }
 
 func main() {
+	alcsClient, err := alcsWagClient.NewFromDiscovery()
+	if err != nil {
+		log.ErrorD("alcs-connect-error", logger.M{"error": err.Error()})
+		os.Exit(1)
+	}
+
 	flags := struct {
-		Name       string `config:"config"`
-		Collection string `config:"collection"`
-		Bucket     string `config:"bucket"`
-		NumFiles   string `config:"numfiles"` // configure library doesn't support ints or floats
+		Name         string `config:"config"`
+		Collection   string `config:"collection"`
+		Bucket       string `config:"bucket"`
+		NumFiles     string `config:"numfiles"` // configure library doesn't support ints or floats
+		SkipDebounce bool   `config:"skipDebounce"`
 	}{ // specifying default values:
-		Name:       "",
-		Collection: "",
-		Bucket:     "TODO",
-		NumFiles:   "1",
+		Name:         "",
+		Collection:   "",
+		Bucket:       "TODO",
+		NumFiles:     "1",
+		SkipDebounce: false,
 	}
 
 	nextPayload, err := analyticspipeline.AnalyticsWorker(&flags)
@@ -338,6 +349,29 @@ func main() {
 	if !ok {
 		log.ErrorD("config-table-not-found", logger.M{"key": flags.Collection})
 		os.Exit(1)
+	}
+
+	// For now, all tables are loaded into mongo_raw.
+	// If this changes, we should pass it in as a parameter, or pull it from the next payload.
+	schema := "mongo_raw"
+
+	// After doing config validations, we can check for debouncing
+	if !flags.SkipDebounce {
+		isFresh := analyticspipeline.IsTableDataFresh(
+			log,
+			alcsClient,
+			alcs.AnalyticsDatabaseRedshiftProd,
+			schema,
+			sourceTable.Destination,
+		)
+		if isFresh {
+			// Augment next payload to indicate that we should skip the load.
+			nextPayload.Current["skip-load"] = true
+
+			// bounce out early
+			analyticspipeline.PrintPayload(nextPayload)
+			return
+		}
 	}
 
 	mongoURL := mongoURLs[flags.Name]

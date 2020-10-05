@@ -1,7 +1,10 @@
-
 [[constraint]]
   name = "github.com/Clever/analytics-util"
-  version = "1.0.0"
+  version = "1.2.1"
+
+[[constraint]]
+  name = "github.com/Clever/analytics-latency-config-service"
+  version = "0.2.1"
 
 [[constraint]]
   name = "github.com/Clever/discovery-go"
