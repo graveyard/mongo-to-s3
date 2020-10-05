@@ -367,6 +367,8 @@ func main() {
 		if isFresh {
 			// Augment next payload to indicate that we should skip the load.
 			nextPayload.Current["skipLoad"] = true
+			// Required field for s3-to-redshift. This will fail later parsing, but appease the flag parser
+			nextPayload.Current["date"] = "N/A"
 
 			// bounce out early
 			analyticspipeline.PrintPayload(nextPayload)
