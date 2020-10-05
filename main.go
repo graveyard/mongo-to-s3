@@ -366,7 +366,7 @@ func main() {
 		)
 		if isFresh {
 			// Augment next payload to indicate that we should skip the load.
-			nextPayload.Current["skip-load"] = true
+			nextPayload.Current["skipLoad"] = true
 
 			// bounce out early
 			analyticspipeline.PrintPayload(nextPayload)
