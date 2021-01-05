@@ -44,7 +44,7 @@ resources:
 dependencies:
   - analytics-latency-config-service
   - gearman-admin
-team: eng-ip
+team: eng-deip
 aws:
   custom: true
   s3:
