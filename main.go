@@ -175,7 +175,9 @@ func configuredOptimusTable(s *mgo.Session, table config.Table) optimus.Table {
 	if table.Meta.UseProjectionOptimization == true {
 		// Create a projection to only pull the fields we're interested in
 		for _, f := range table.Fields {
-			fields[f.Source] = 1
+			if f.Source != "" {
+				fields[f.Source] = 1
+			}
 		}
 	}
 
