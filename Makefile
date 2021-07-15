@@ -66,5 +66,5 @@ run: build
 $(PKGS): golang-test-all-deps
 	$(call golang-test-all,$@)
 
-install_deps: golang-dep-vendor-deps
-	$(call golang-dep-vendor)
+install_deps:
+	go mod vendor
