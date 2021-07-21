@@ -34,6 +34,6 @@ require (
 	gopkg.in/Clever/kayvee-go.v6 v6.24.0
 	gopkg.in/Clever/optimus.v3 v3.7.0
 	gopkg.in/fatih/set.v0 v0.1.0 // indirect
-	gopkg.in/mgo.v2 v2.0.0-20160316054952-b6e2fa371e64
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/yaml.v2 v2.3.0
 )
