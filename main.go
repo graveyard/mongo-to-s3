@@ -154,8 +154,7 @@ func mongoAtlasConnection(url string, username string, password string) (*mgo.Se
 		return nil, err
 	}
 	log.Info("mongo-dial-successful")
-	session.SetMode(mgo.Secondary, true)
-
+	session.SetMode(mgo.Nearest, true)
 	return session, nil
 }
 
