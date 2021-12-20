@@ -1,4 +1,4 @@
-FROM debian:stretch
+FROM debian:bullseye
 RUN apt-get -y update && \
     apt-get install -y ca-certificates
 COPY bin/mongo-to-s3 /usr/bin/mongo-to-s3

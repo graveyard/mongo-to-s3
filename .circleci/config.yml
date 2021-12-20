@@ -1,9 +1,9 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/Clever/mongo-to-s3
+    working_directory: ~/go/src/github.com/Clever/mongo-to-s3
     docker:
-    - image: circleci/golang:1.13-stretch
+    - image: cimg/go:1.16
     - image: circleci/mongo:3.2.20-jessie-ram
     environment:
       GOPRIVATE: github.com/Clever/*
