@@ -124,7 +124,7 @@ func mongoConnection(url string) *mgo.Session {
 		log.ErrorD("mongo-dial-error", logger.M{"error": err.Error()})
 		os.Exit(1)
 	}
-	s.SetMode(mgo.Monotonic, true)
+	s.SetMode(mgo.Primary, true)
 	return s
 }
 
