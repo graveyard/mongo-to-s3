@@ -1,6 +1,6 @@
 module github.com/Clever/mongo-to-s3
 
-go 1.13
+go 1.16
 
 require (
 	github.com/Clever/analytics-latency-config-service v0.2.1
