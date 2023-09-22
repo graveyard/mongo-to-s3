@@ -270,10 +270,11 @@ type Manifest struct {
 // createManifest creates a manifest file given the list of files to include into the file
 // it returns a reader for convenience
 // looks something like:
-//  { "entries": [
-//    {"url": "s3://clever-analytics/mongo_students_1_2016-01-27T21:00:00Z.json.gz", "mandatory": true},
-//    {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
-//  ] }
+//
+//	{ "entries": [
+//	  {"url": "s3://clever-analytics/mongo_students_1_2016-01-27T21:00:00Z.json.gz", "mandatory": true},
+//	  {"url": "s3://clever-analytics/mongo_students_2_2016-01-27T21:00:00Z.json.gz", "mandatory": true}
+//	] }
 func createManifest(bucket string, dataFilenames []string) (io.Reader, error) {
 	var entryArray EntryArray
 	for _, fn := range dataFilenames {
